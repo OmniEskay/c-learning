@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Error Handling — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 3 · Lesson 14</span>
+      <span class="meta-badge time">⏱ ~30 min read + practice</span>
+    </div>
+
+    <h1>Error Handling</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>This is exactly how system calls signal failure in Unix. Every time your program opens a file, connects to a network socket, or allocates memory, the kernel returns a value indicating success or failure and sets <code>errno</code> to explain why. Production C code that ignores errors becomes a mystery when it fails in the field — often silently corrupting data or hanging indefinitely. Good error handling is what makes the difference between a toy program and production-grade software.</p>
+    </div>
+
+    <h2>errno: The Global Error Code</h2>
+    <p><span class="glossary-term" data-term="errno">errno</span> is a global integer variable (in <code>&lt;errno.h&gt;</code>) that is set by the C library when a system call or library function fails. It is only meaningful immediately after a failure — a successful call may or may not reset it.</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;string.h&gt;
+
+int main(void) {
+    FILE *fp = fopen("nonexistent.txt", "r");
+    if (fp == NULL) {
+        /* errno is now set — check it immediately */
+        printf("errno = %d\n", errno);                /* e.g., 2 */
+        printf("Meaning: %s\n", strerror(errno));     /* "No such file or directory" */
+    }
+
+    /* Another common pattern: reset errno before the call */
+    errno = 0;
+    long val = strtol("abc", NULL, 10);
+    if (errno != 0) {
+        perror("strtol");
+    }
+
+    return 0;
+}</code></pre>
+
+    <h2>Common errno Values</h2>
+    <table>
+      <thead><tr><th>Constant</th><th>Value</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>ENOENT</code></td><td>2</td><td>No such file or directory</td></tr>
+        <tr><td><code>EACCES</code></td><td>13</td><td>Permission denied</td></tr>
+        <tr><td><code>ENOMEM</code></td><td>12</td><td>Out of memory</td></tr>
+        <tr><td><code>EINVAL</code></td><td>22</td><td>Invalid argument</td></tr>
+        <tr><td><code>ENOBUFS</code></td><td>105</td><td>No buffer space available</td></tr>
+        <tr><td><code>ECONNREFUSED</code></td><td>111</td><td>Connection refused (networking)</td></tr>
+        <tr><td><code>ETIMEDOUT</code></td><td>110</td><td>Connection timed out</td></tr>
+      </tbody>
+    </table>
+
+    <h2>perror and strerror</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;string.h&gt;
+
+void demo_errors(void) {
+    FILE *fp = fopen("/root/secret", "r");   /* Will fail with EACCES if not root */
+    if (!fp) {
+        /* perror: prints "prefix: error message\n" to stderr */
+        perror("fopen");
+        /* Output: "fopen: Permission denied" */
+
+        /* strerror: returns the error string for any errno value */
+        fprintf(stderr, "Error %d: %s\n", errno, strerror(errno));
+
+        return;
+    }
+    fclose(fp);
+}</code></pre>
+
+    <h2>Return-Code Conventions</h2>
+    <p>C functions communicate errors through their return value. There is no standard convention — each function documents its own:</p>
+    <table>
+      <thead><tr><th>Function type</th><th>Success</th><th>Failure</th></tr></thead>
+      <tbody>
+        <tr><td>fopen, malloc</td><td>non-NULL pointer</td><td>NULL (sets errno)</td></tr>
+        <tr><td>fread, fwrite</td><td>number of items processed</td><td>fewer items + feof/ferror</td></tr>
+        <tr><td>most POSIX syscalls</td><td>0 or non-negative</td><td>-1 (sets errno)</td></tr>
+        <tr><td>strcmp, memcmp</td><td>0 = equal</td><td>non-zero (not an error)</td></tr>
+        <tr><td>Custom functions</td><td>0 or valid pointer</td><td>negative / NULL (document it!)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Propagating Errors</h2>
+    <p>Production C code propagates errors up the call stack rather than calling <code>exit()</code> immediately:</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;errno.h&gt;
+
+/* Returns 0 on success, -1 on error */
+int load_config(const char *path, char *buf, int buflen) {
+    FILE *fp = fopen(path, "r");
+    if (!fp) return -1;   /* errno already set by fopen */
+
+    if (!fgets(buf, buflen, fp)) {
+        int saved = errno;   /* save before fclose might change it */
+        fclose(fp);
+        errno = saved;
+        return -1;
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+int main(void) {
+    char config[256];
+    if (load_config("config.txt", config, sizeof(config)) != 0) {
+        perror("load_config");   /* prints the preserved errno */
+        return 1;
+    }
+    printf("Config: %s", config);
+    return 0;
+}</code></pre>
+
+    <h2>assert for Programming Errors</h2>
+    <pre><code class="language-c">#include &lt;assert.h&gt;
+
+/* Use assert for conditions that should NEVER be false
+   (programming errors, not user errors) */
+void process(int *data, int n) {
+    assert(data != NULL);      /* programmer contract: must not pass NULL */
+    assert(n > 0);             /* must have at least one element */
+
+    /* If these assertions fire in debug mode, it indicates
+       a bug in the caller, not a runtime error to handle */
+}
+
+/* Assertions are disabled with -DNDEBUG (release builds)
+   DO NOT use assert for user input validation or file errors */</code></pre>
+
+    <h2>Diff: Ignoring Error Codes</h2>
+    <div class="diff-container">
+      <pre class="diff-bad"><code class="language-c">/* BROKEN: silently ignoring errors */
+#include &lt;stdio.h&gt;
+
+void save_data(const char *path, int *data, int n) {
+    FILE *fp = fopen(path, "w");
+    /* No NULL check — if fopen fails, fp is NULL */
+
+    for (int i = 0; i &lt; n; i++) {
+        fprintf(fp, "%d\n", data[i]);
+        /* If disk is full, fprintf silently fails */
+    }
+
+    fclose(fp);
+    /* No check if write actually succeeded */
+}</code></pre>
+      <pre class="diff-good"><code class="language-c">/* FIXED: check and report every failure */
+#include &lt;stdio.h&gt;
+#include &lt;errno.h&gt;
+
+int save_data(const char *path, int *data, int n) {
+    FILE *fp = fopen(path, "w");
+    if (!fp) { perror("fopen"); return -1; }
+
+    for (int i = 0; i &lt; n; i++) {
+        if (fprintf(fp, "%d\n", data[i]) &lt; 0) {
+            perror("fprintf");
+            fclose(fp);
+            return -1;
+        }
+    }
+
+    if (fclose(fp) != 0) {   /* fclose can fail! (flush error) */
+        perror("fclose");
+        return -1;
+    }
+    return 0;
+}</code></pre>
+      <div class="diff-explanation">
+        <strong>What was wrong:</strong> Ignoring return values means silent data corruption. A full disk causes <code>fprintf</code> to fail silently. The file may be partially written, but the caller has no way to know. On a production server, this is how databases lose data.<br><br>
+        <strong>Why the fix works:</strong> Each operation's return value is checked. On failure, <code>perror</code> prints the reason and the function returns -1. Note that <code>fclose()</code> itself can fail — it flushes any buffered writes and must be checked.
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>Reading errno after a successful call</strong> — errno is only valid immediately after a failure. A subsequent successful call may change or clear errno. Check it before calling anything else.</li>
+        <li><strong>Using errno in multi-threaded code</strong> — In threaded programs, errno is thread-local (each thread has its own copy) in POSIX. This is handled automatically by the C library.</li>
+        <li><strong>Calling exit() deep in library code</strong> — Library functions should return error codes to the caller; they shouldn't <code>exit()</code> unilaterally. The caller must decide whether the error is fatal.</li>
+      </ul>
+    </div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Wrap a system call</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a function <code>FILE *safe_fopen(const char *path, const char *mode)</code> that wraps <code>fopen</code>, prints a descriptive error message to stderr on failure (including filename and errno string), and returns NULL on failure.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">fprintf(stderr, "Cannot open '%s': %s\n", path, strerror(errno)). Return NULL. On success, just return the FILE*.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Error-safe numeric parsing</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write <code>int parse_int(const char *s, long *out)</code> that uses <code>strtol</code> to safely parse an integer string. Return 0 on success, -1 on error (non-numeric input, overflow, empty string). Set <code>*out</code> only on success.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Set errno=0, call strtol with &endptr. Check: errno != 0 (overflow), endptr == s (no digits), *endptr != '\0' (trailing garbage). All three indicate failure.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Build an error-handling library</span>
+        </div>
+        <div class="exercise-body">
+          <p>Design a simple error-handling system: an <code>Error</code> struct with a code, message, and file/line info. Write macros <code>RETURN_ERR(code, msg)</code> and <code>CHECK(expr)</code>. Implement a function chain that propagates errors with context through 3 levels of calls.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use the __FILE__ and __LINE__ macros in error macros. The Error struct: {int code; char msg[128]; const char *file; int line;}. RETURN_ERR fills the struct and returns. CHECK calls a function and returns its error if non-zero.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-err">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. What global variable is set when a system call fails?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">error</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">errmsg</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">errno</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">strerr</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">errno is defined in &lt;errno.h&gt; and set by the C library on failure. It's thread-local in modern implementations.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. Which function prints a human-readable error message for the current errno?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">printf_err</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">strerror</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">perror</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">errprint</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">perror(prefix) prints "prefix: error string\n" to stderr. strerror(errno) returns the error string for use in your own printf.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. By convention, a C function returns what value to signal failure?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">1 or a non-NULL pointer</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">0 or NULL (context-dependent)</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">A negative number only</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">The errno value</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">Conventions vary: integer functions often return -1 for failure; pointer functions return NULL. Always read the man page for each function's specific convention.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Error Handling</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 3</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_err_1', correct: 2 },
+  { id: 'q_err_2', correct: 2 },
+  { id: 'q_err_3', correct: 1 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-err', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>

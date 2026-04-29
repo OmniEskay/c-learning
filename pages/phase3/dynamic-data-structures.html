@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dynamic Data Structures — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 3 · Lesson 12</span>
+      <span class="meta-badge time">⏱ ~50 min read + practice</span>
+    </div>
+
+    <h1>Dynamic Data Structures</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>The Linux kernel's task scheduler uses a red-black tree (a balanced BST) of runnable processes. The kernel's memory allocator is a slab allocator built on linked lists. Redis stores sorted sets using skip lists. Understanding these data structures — and implementing them from scratch in C — is what separates systems programmers from application programmers.</p>
+    </div>
+
+    <h2>Singly Linked List</h2>
+    <p>A <span class="glossary-term" data-term="linked list">linked list</span> is a chain of nodes, each holding a value and a pointer to the next node. Unlike arrays, nodes need not be contiguous in memory — you can insert and delete without shifting elements.</p>
+
+    <div class="memory-diagram">Singly Linked List: 10 → 20 → 30 → NULL
+
+┌────────┬──────────┐   ┌────────┬──────────┐   ┌────────┬──────────┐
+│ val: 10│ next ────┼──▶│ val: 20│ next ────┼──▶│ val: 30│ next: NULL│
+└────────┴──────────┘   └────────┴──────────┘   └────────┴──────────┘
+ Node at 0x600010         Node at 0x600030         Node at 0x600050
+
+head = 0x600010
+
+To traverse: start at head, follow ->next until NULL
+To insert at head: new_node->next = head; head = new_node;
+To delete a node: prev->next = node->next; free(node);</div>
+
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+typedef struct Node {
+    int value;
+    struct Node *next;
+} Node;
+
+/* Create a new node */
+Node *node_new(int val) {
+    Node *n = malloc(sizeof(Node));
+    if (!n) return NULL;
+    n-&gt;value = val;
+    n-&gt;next = NULL;
+    return n;
+}
+
+/* Insert at the head — O(1) */
+Node *list_prepend(Node *head, int val) {
+    Node *n = node_new(val);
+    if (!n) return head;
+    n-&gt;next = head;
+    return n;
+}
+
+/* Append to the tail — O(n) */
+Node *list_append(Node *head, int val) {
+    Node *n = node_new(val);
+    if (!n) return head;
+    if (!head) return n;
+    Node *cur = head;
+    while (cur-&gt;next) cur = cur-&gt;next;
+    cur-&gt;next = n;
+    return head;
+}
+
+/* Print all values */
+void list_print(Node *head) {
+    for (Node *cur = head; cur; cur = cur-&gt;next) {
+        printf("%d", cur-&gt;value);
+        if (cur-&gt;next) printf(" → ");
+    }
+    printf(" → NULL\n");
+}
+
+/* Delete first node with given value — O(n) */
+Node *list_delete(Node *head, int val) {
+    if (!head) return NULL;
+    if (head-&gt;value == val) {
+        Node *next = head-&gt;next;
+        free(head);
+        return next;
+    }
+    Node *cur = head;
+    while (cur-&gt;next && cur-&gt;next-&gt;value != val) {
+        cur = cur-&gt;next;
+    }
+    if (cur-&gt;next) {
+        Node *del = cur-&gt;next;
+        cur-&gt;next = del-&gt;next;
+        free(del);
+    }
+    return head;
+}
+
+/* Free the entire list */
+void list_free(Node *head) {
+    while (head) {
+        Node *next = head-&gt;next;
+        free(head);
+        head = next;
+    }
+}
+
+int main(void) {
+    Node *list = NULL;
+    list = list_append(list, 10);
+    list = list_append(list, 20);
+    list = list_append(list, 30);
+    list = list_prepend(list, 5);
+
+    list_print(list);       /* 5 → 10 → 20 → 30 → NULL */
+    list = list_delete(list, 20);
+    list_print(list);       /* 5 → 10 → 30 → NULL */
+
+    list_free(list);
+    return 0;
+}</code></pre>
+
+    <h2>Stack (LIFO)</h2>
+    <div class="memory-diagram">Stack (Last In, First Out):
+
+  push(1) → push(2) → push(3)
+                                     top
+  ┌───────────────────────────────┐   │
+  │  [3]  ← most recent pushed   │ ◀─┘
+  ├───────────────────────────────┤
+  │  [2]                          │
+  ├───────────────────────────────┤
+  │  [1]  ← first pushed         │
+  └───────────────────────────────┘
+
+  pop() → returns 3 (top)
+  pop() → returns 2
+  pop() → returns 1
+  pop() → empty!</div>
+
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;stdbool.h&gt;
+
+typedef struct StackNode {
+    int value;
+    struct StackNode *next;
+} StackNode;
+
+typedef struct { StackNode *top; int size; } Stack;
+
+Stack stack_new(void) { return (Stack){NULL, 0}; }
+
+bool stack_push(Stack *s, int val) {
+    StackNode *n = malloc(sizeof(StackNode));
+    if (!n) return false;
+    n-&gt;value = val;
+    n-&gt;next = s-&gt;top;
+    s-&gt;top = n;
+    s-&gt;size++;
+    return true;
+}
+
+bool stack_pop(Stack *s, int *out) {
+    if (!s-&gt;top) return false;
+    StackNode *n = s-&gt;top;
+    *out = n-&gt;value;
+    s-&gt;top = n-&gt;next;
+    free(n);
+    s-&gt;size--;
+    return true;
+}
+
+bool stack_peek(const Stack *s, int *out) {
+    if (!s-&gt;top) return false;
+    *out = s-&gt;top-&gt;value;
+    return true;
+}
+
+void stack_free(Stack *s) {
+    int tmp;
+    while (stack_pop(s, &tmp));
+}
+
+int main(void) {
+    Stack s = stack_new();
+    stack_push(&s, 1);
+    stack_push(&s, 2);
+    stack_push(&s, 3);
+
+    int val;
+    while (stack_pop(&s, &val)) {
+        printf("%d\n", val);  /* 3, 2, 1 */
+    }
+    return 0;
+}</code></pre>
+
+    <h2>Queue (FIFO)</h2>
+    <div class="memory-diagram">Queue (First In, First Out):
+
+  enqueue(A) → enqueue(B) → enqueue(C)
+
+  front                           rear
+    │                               │
+    ▼                               ▼
+  ┌───┐   ┌───┐   ┌───┐   ┌───┐   ┌───┐
+  │ A │──▶│ B │──▶│ C │──▶│...│──▶│   │
+  └───┘   └───┘   └───┘   └───┘   └───┘
+
+  dequeue() → returns A (front)
+  dequeue() → returns B</div>
+
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;stdbool.h&gt;
+
+typedef struct QNode { int val; struct QNode *next; } QNode;
+typedef struct { QNode *front; QNode *rear; int size; } Queue;
+
+Queue queue_new(void) { return (Queue){NULL, NULL, 0}; }
+
+bool queue_enqueue(Queue *q, int val) {
+    QNode *n = malloc(sizeof(QNode));
+    if (!n) return false;
+    n-&gt;val = val;
+    n-&gt;next = NULL;
+    if (!q-&gt;rear) {
+        q-&gt;front = q-&gt;rear = n;
+    } else {
+        q-&gt;rear-&gt;next = n;
+        q-&gt;rear = n;
+    }
+    q-&gt;size++;
+    return true;
+}
+
+bool queue_dequeue(Queue *q, int *out) {
+    if (!q-&gt;front) return false;
+    QNode *n = q-&gt;front;
+    *out = n-&gt;val;
+    q-&gt;front = n-&gt;next;
+    if (!q-&gt;front) q-&gt;rear = NULL;
+    free(n);
+    q-&gt;size--;
+    return true;
+}</code></pre>
+
+    <h2>Doubly Linked List</h2>
+    <div class="memory-diagram">Doubly Linked List: NULL ← 10 ↔ 20 ↔ 30 → NULL
+
+        prev   val   next           prev   val   next
+NULL ←─┬────┬──────┬────┬─────────┬────┬──────┬────┬─→ NULL
+       │    │  10  │  ──┼────────▶│    │  20  │  ──┼──▶...
+       │ ◀──┼──────┤    │         │ ◀──┼──────┤    │
+       └────┴──────┴────┘         └────┴──────┴────┘
+
+Advantages over singly linked list:
+ - O(1) deletion given a pointer to the node (no need to find prev)
+ - Can traverse backwards</div>
+
+    <pre><code class="language-c">typedef struct DNode {
+    int value;
+    struct DNode *prev;
+    struct DNode *next;
+} DNode;
+
+DNode *dlist_insert_after(DNode *node, int val) {
+    DNode *n = malloc(sizeof(DNode));
+    if (!n) return NULL;
+    n-&gt;value = val;
+    n-&gt;next = node-&gt;next;
+    n-&gt;prev = node;
+    if (node-&gt;next) node-&gt;next-&gt;prev = n;
+    node-&gt;next = n;
+    return n;
+}
+
+void dlist_remove(DNode *node) {
+    if (node-&gt;prev) node-&gt;prev-&gt;next = node-&gt;next;
+    if (node-&gt;next) node-&gt;next-&gt;prev = node-&gt;prev;
+    free(node);
+}</code></pre>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>Not freeing the entire list</strong> — When you're done with a list, you must traverse and free every node. Freeing only the head leaks all other nodes.</li>
+        <li><strong>Forgetting to handle the empty-list case</strong> — Many list operations (delete, print, append) must check <code>head == NULL</code> first.</li>
+        <li><strong>NULL dereference on last node's next</strong> — The last node's <code>next</code> is <code>NULL</code>. Always check before accessing <code>cur-&gt;next-&gt;value</code>.</li>
+      </ul>
+    </div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Reverse a linked list</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a function <code>Node *list_reverse(Node *head)</code> that reverses a singly linked list in-place (without allocating new nodes) and returns the new head.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use three pointers: prev = NULL, cur = head, next. Loop: save next = cur->next; set cur->next = prev; advance prev = cur; cur = next. Return prev when cur is NULL.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Detect a cycle in a linked list</span>
+        </div>
+        <div class="exercise-body">
+          <p>Implement Floyd's cycle detection algorithm (tortoise and hare). Write a function that returns true if a linked list contains a cycle, false otherwise.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use two pointers: slow advances 1 step at a time, fast advances 2 steps. If they meet, there's a cycle. If fast or fast->next becomes NULL, there's no cycle.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Implement a circular buffer</span>
+        </div>
+        <div class="exercise-body">
+          <p>Implement a fixed-capacity circular buffer (ring buffer) using an array. It should support: <code>push</code> (fails when full), <code>pop</code> (fails when empty), <code>peek</code>, <code>size</code>, <code>is_full</code>, <code>is_empty</code>. No dynamic allocation — use a fixed-size array in the struct.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Store head and tail indices. Push: buf[tail] = val; tail = (tail+1) % capacity; Pop: val = buf[head]; head = (head+1) % capacity. Full when (tail+1)%capacity == head. Empty when head == tail.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-dds">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. In a singly linked list, the last node's next pointer should be:</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">0</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">EOF</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">NULL</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">A pointer back to head</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">NULL signals the end of the list. A pointer back to head would create a circular list — useful sometimes, but a bug if unintentional.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. A stack follows which order?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">FIFO</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">LIFO</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">Random</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">FILO — same as FIFO</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">Stacks are Last-In First-Out. Think of a stack of plates — you take from the top (last placed). Queues are FIFO.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. What is the time complexity of inserting at the head of a singly linked list?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">O(n)</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">O(log n)</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">O(1)</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">O(n²)</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">Head insertion is O(1): new_node->next = head; head = new_node. No traversal needed. Tail insertion is O(n) without a tail pointer.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Data Structures</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 3</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_dds_1', correct: 2 },
+  { id: 'q_dds_2', correct: 1 },
+  { id: 'q_dds_3', correct: 2 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-dds', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>

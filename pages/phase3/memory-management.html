@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Memory Management — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 3 · Lesson 11</span>
+      <span class="meta-badge time">⏱ ~40 min read + practice</span>
+    </div>
+
+    <h1>Memory Management</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>The Heartbleed vulnerability (CVE-2014-0160) was a buffer over-read in OpenSSL that exposed private server keys for 66% of the internet. It was a C memory management error. Every heap exploitation technique — use-after-free, heap spray, tcache poisoning — is built on misuse of malloc/free. Understanding memory management means understanding both how to write safe code and why security exploits work the way they do.</p>
+    </div>
+
+    <h2>Stack vs Heap</h2>
+    <p>C programs use two main memory regions for data:</p>
+    <div class="memory-diagram">VIRTUAL ADDRESS SPACE (simplified)
+
+High addresses
+┌───────────────────────────────────────────┐
+│            STACK                          │
+│  ┌─────────────────────────────────────┐  │
+│  │ main() frame                        │  │
+│  │  local vars, saved registers        │  │
+│  └─────────────────────────────────────┘  │
+│  ↓ (grows downward on most platforms)     │
+│                                           │
+│              (unmapped gap)               │
+│                                           │
+│  ↑ (grows upward)                         │
+│  ┌─────────────────────────────────────┐  │
+│  │           HEAP                      │  │
+│  │  malloc/calloc/realloc memory       │  │
+│  └─────────────────────────────────────┘  │
+├───────────────────────────────────────────┤
+│  BSS  — uninitialised global/static vars  │
+├───────────────────────────────────────────┤
+│  Data — initialised global/static vars   │
+├───────────────────────────────────────────┤
+│  Text — compiled machine code             │
+└───────────────────────────────────────────┘
+Low addresses
+
+STACK characteristics:     HEAP characteristics:
+✓ Automatic lifetime       ✗ Manual lifetime (malloc/free)
+✓ Very fast (adjust SP)    ✓ Can be any size
+✓ No fragmentation         ✓ Lifetime crosses function calls
+✗ Limited size (~8 MB)     ✗ Slower (allocator overhead)
+✗ Lost when fn returns     ✗ Risk of leaks and fragmentation</div>
+
+    <h2>malloc, calloc, realloc, free</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+int main(void) {
+    /* malloc: allocate n bytes, UNINITIALISED */
+    int *a = malloc(10 * sizeof(int));
+    if (!a) { perror("malloc"); return 1; }
+    /* a contains garbage — must initialise before reading */
+
+    /* calloc: allocate n elements of size, ZERO-INITIALISED */
+    int *b = calloc(10, sizeof(int));
+    if (!b) { free(a); return 1; }
+    /* b is guaranteed to be all zeros */
+
+    /* realloc: resize existing allocation */
+    int *c = malloc(5 * sizeof(int));
+    if (!c) { free(a); free(b); return 1; }
+    /* ... fill c with 5 ints ... */
+
+    int *c2 = realloc(c, 10 * sizeof(int));  /* resize to 10 ints */
+    if (!c2) {
+        free(c);   /* realloc failed, original c still valid */
+        free(a); free(b);
+        return 1;
+    }
+    c = c2;   /* on success, c is now invalid; use c2 (or reassign) */
+
+    free(a);
+    free(b);
+    free(c);  /* c now points to realloc'd memory */
+    return 0;
+}</code></pre>
+
+    <h2>Memory Leaks</h2>
+    <p>A <span class="glossary-term" data-term="memory leak">memory leak</span> occurs when heap memory is allocated but never freed:</p>
+    <pre><code class="language-c">/* Common leak patterns */
+
+/* Pattern 1: early return without freeing */
+int *data = malloc(100 * sizeof(int));
+if (some_error_condition) {
+    return -1;  /* BUG: data leaked! */
+}
+free(data);
+
+/* Pattern 2: reassigning a pointer without freeing */
+char *s = malloc(10);
+s = malloc(20);  /* BUG: original 10 bytes leaked */
+
+/* Pattern 3: losing the only pointer to heap memory */
+void leak(void) {
+    int *p = malloc(sizeof(int));
+    *p = 42;
+}  /* p goes out of scope — malloc'd block unreachable, leaked */</code></pre>
+
+    <h2>Detecting Leaks with Valgrind</h2>
+    <p>Valgrind's memcheck tool instruments your program at runtime to detect heap errors:</p>
+    <pre><code class="language-bash">gcc -g -o prog prog.c
+valgrind --leak-check=full --show-leak-kinds=all ./prog</code></pre>
+    <p>Sample Valgrind output for a leak:</p>
+    <pre><code>==12345== LEAK SUMMARY:
+==12345==    definitely lost: 40 bytes in 1 blocks
+==12345==    indirectly lost: 0 bytes in 0 blocks
+==12345== ERROR SUMMARY: 1 errors from 1 contexts
+
+==12345== 40 bytes in 1 blocks are definitely lost in loss record
+==12345==    at 0x4C2FB0F: malloc (in vgpreload_memcheck.so)
+==12345==    by 0x400526: main (prog.c:8)</code></pre>
+
+    <p>Alternatively, compile with AddressSanitizer (no extra tool needed):</p>
+    <pre><code class="language-bash">gcc -g -fsanitize=address,leak -o prog prog.c
+./prog</code></pre>
+
+    <h2>Segmentation Faults</h2>
+    <p>A <span class="glossary-term" data-term="segfault">segfault</span> (SIGSEGV) occurs when your program accesses memory it doesn't own:</p>
+    <pre><code class="language-c">/* Common segfault causes */
+
+/* 1. NULL dereference */
+int *p = NULL;
+*p = 5;            /* SIGSEGV */
+
+/* 2. Out-of-bounds array access */
+int arr[3] = {1, 2, 3};
+int x = arr[10];   /* reading random memory — undefined behaviour */
+
+/* 3. Use after free */
+int *q = malloc(sizeof(int));
+free(q);
+*q = 42;           /* SIGSEGV or silent corruption */
+
+/* 4. Stack overflow (deep recursion) */
+void infinite(void) { infinite(); }  /* eventually SIGSEGV */</code></pre>
+
+    <p>To debug a segfault with GDB:</p>
+    <pre><code class="language-bash">gcc -g -o prog prog.c
+gdb ./prog
+# In GDB:
+run
+bt    # print backtrace — shows which line caused the crash</code></pre>
+
+    <h2>Diff: Use-After-Free Bug</h2>
+    <div class="diff-container">
+      <pre class="diff-bad"><code class="language-c">/* BROKEN: use-after-free */
+#include &lt;stdlib.h&gt;
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    int *p = malloc(sizeof(int));
+    if (!p) return 1;
+    *p = 42;
+
+    free(p);       /* memory returned to allocator */
+    printf("%d\n", *p);  /* BUG: undefined behaviour */
+    /* May print 42, 0, crash, or anything else */
+
+    return 0;
+}</code></pre>
+      <pre class="diff-good"><code class="language-c">/* FIXED: don't access after free; NULL the pointer */
+#include &lt;stdlib.h&gt;
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    int *p = malloc(sizeof(int));
+    if (!p) return 1;
+    *p = 42;
+
+    printf("%d\n", *p);  /* read BEFORE freeing */
+    free(p);
+    p = NULL;   /* guard: accessing NULL will crash immediately */
+                /* making the bug obvious rather than silent */
+
+    return 0;
+}</code></pre>
+      <div class="diff-explanation">
+        <strong>What was wrong:</strong> After <code>free(p)</code>, the allocator may immediately reuse that memory for another allocation. Reading or writing through <code>p</code> after the free is <span class="glossary-term" data-term="undefined behaviour">undefined behaviour</span> — the most dangerous kind, because it often appears to work in tests but fails randomly in production.<br><br>
+        <strong>Why the fix works:</strong> Print before freeing. After freeing, setting <code>p = NULL</code> means any subsequent accidental dereference will immediately crash with a null-pointer error — a loud, obvious bug — rather than silent memory corruption.
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>Double free</strong> — Calling <code>free(p)</code> twice corrupts the allocator's free list. This is a security vulnerability (heap exploitation). Setting <code>p = NULL</code> after <code>free()</code> makes a double-free a safe no-op since <code>free(NULL)</code> is defined to do nothing.</li>
+        <li><strong>Forgetting to check realloc's return value</strong> — If <code>realloc</code> fails and you do <code>p = realloc(p, n)</code>, <code>p</code> becomes NULL but the original memory is still allocated and now unreachable — a guaranteed leak. Always use a temporary variable.</li>
+        <li><strong>Stack overflow from large local arrays</strong> — <code>char buf[10000000];</code> on the stack will likely crash (stack is limited to ~8 MB). Large buffers should be heap-allocated with <code>malloc</code>.</li>
+      </ul>
+    </div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Safe string duplicate</span>
+        </div>
+        <div class="exercise-body">
+          <p>Implement <code>char *safe_strdup(const char *s)</code> that allocates exactly enough memory to hold a copy of <code>s</code> (including the null terminator), copies it, and returns the pointer. The caller must free the result.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Allocate strlen(s) + 1 bytes with malloc. Copy with strcpy or memcpy. Return the pointer. Return NULL if malloc fails. This is how POSIX strdup() works.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Memory-safe vector (dynamic array)</span>
+        </div>
+        <div class="exercise-body">
+          <p>Implement a dynamic integer array with a struct: <code>{ int *data; size_t size; size_t capacity; }</code>. Write <code>vec_push</code>, <code>vec_get</code>, <code>vec_free</code>. Double capacity when full. Always check malloc/realloc results.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Start with capacity 4. In vec_push: if size==capacity, realloc to capacity*2. Save the realloc result in a temp ptr; only update vec->data if not NULL. vec_free: free(vec->data), set data=NULL, size=capacity=0.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Find and fix all bugs with Valgrind</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a program that intentionally contains: (1) a memory leak, (2) a use-after-free, (3) an out-of-bounds read. Compile with <code>-g</code> and run under Valgrind. Fix each bug based on Valgrind's output. Document what Valgrind reported for each issue.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use --leak-check=full for leaks. Use-after-free appears as "Invalid read of size N". Out-of-bounds: access arr[n] on an n-element array. Fix in order: easiest to hardest.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-mem">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. What is a memory leak?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">Reading from an invalid pointer</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">Allocated memory that is never freed</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">Stack overflow</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">Writing past an array bound</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">A memory leak is heap memory that was allocated with malloc/calloc but never returned with free. It grows the process footprint indefinitely.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. calloc differs from malloc in that it:</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">Allocates on the stack</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">Returns a void pointer</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">Zero-initialises the allocated memory</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">Accepts a single size argument</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">calloc(n, size) allocates n*size bytes and zero-initialises them. malloc leaves memory uninitialised — reading uninitialised memory is undefined behaviour.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. What tool detects memory leaks and invalid accesses at runtime?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">GDB</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">Valgrind</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">Lint</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">nm</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">Valgrind (memcheck tool) instruments the program to track all heap allocations and detects leaks, use-after-free, and invalid reads/writes.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Memory Mgmt</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 3</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_mem_1', correct: 1 },
+  { id: 'q_mem_2', correct: 2 },
+  { id: 'q_mem_3', correct: 1 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-mem', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>

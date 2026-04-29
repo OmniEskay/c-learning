@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recursion — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 3 · Lesson 13</span>
+      <span class="meta-badge time">⏱ ~35 min read + practice</span>
+    </div>
+
+    <h1>Recursion</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>Compilers use recursive descent parsers to read source code. File systems use recursive tree traversal to list directories. Quicksort and mergesort are inherently recursive. When you call <code>ls -R</code>, the underlying C code is recursing through directory inodes. Understanding recursion — especially when <em>not</em> to use it — is a prerequisite for reading and writing production systems code.</p>
+    </div>
+
+    <h2>What is Recursion?</h2>
+    <p><span class="glossary-term" data-term="recursion">Recursion</span> is when a function calls itself. Every recursive solution has two parts:</p>
+    <ul>
+      <li><strong>Base case</strong> — the condition that stops recursion (returns without calling itself)</li>
+      <li><strong>Recursive case</strong> — reduces the problem toward the base case and calls itself</li>
+    </ul>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+/* factorial: n! = n * (n-1) * (n-2) * ... * 1 */
+long factorial(int n) {
+    if (n &lt;= 1) return 1;       /* base case */
+    return n * factorial(n - 1); /* recursive case: reduces n by 1 */
+}
+
+int main(void) {
+    for (int i = 0; i &lt;= 10; i++) {
+        printf("%d! = %ld\n", i, factorial(i));
+    }
+    return 0;
+}</code></pre>
+
+    <h2>Call Stack Diagram: factorial(4)</h2>
+    <div class="memory-diagram">factorial(4) call stack trace:
+
+  factorial(4) called
+  │  4 * factorial(3)  → waiting...
+  │    factorial(3) called
+  │    │  3 * factorial(2)  → waiting...
+  │    │    factorial(2) called
+  │    │    │  2 * factorial(1)  → waiting...
+  │    │    │    factorial(1) called
+  │    │    │    │  n=1, base case! returns 1
+  │    │    │    ▼
+  │    │    │  2 * 1 = 2  → returns 2
+  │    │    ▼
+  │    │  3 * 2 = 6  → returns 6
+  │    ▼
+  │  4 * 6 = 24  → returns 24
+  ▼
+Result: 24
+
+STACK at deepest point (n=1):
+┌─────────────────────────────────┐  ← highest address
+│ factorial(1)  n=1  returns 1    │
+├─────────────────────────────────┤
+│ factorial(2)  n=2  waiting...   │
+├─────────────────────────────────┤
+│ factorial(3)  n=3  waiting...   │
+├─────────────────────────────────┤
+│ factorial(4)  n=4  waiting...   │
+├─────────────────────────────────┤
+│ main()                          │
+└─────────────────────────────────┘  ← lowest address (stack pointer)</div>
+
+    <h2>Fibonacci — Naive vs Memoised</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+/* Naive recursive Fibonacci — O(2^n) time */
+long fib_naive(int n) {
+    if (n &lt;= 1) return n;
+    return fib_naive(n - 1) + fib_naive(n - 2);
+}
+
+/* Memoised Fibonacci — O(n) time, O(n) space */
+#define MAXN 100
+long memo[MAXN];
+
+long fib_memo(int n) {
+    if (n &lt;= 1) return n;
+    if (memo[n] != -1) return memo[n];       /* cached result */
+    memo[n] = fib_memo(n-1) + fib_memo(n-2);
+    return memo[n];
+}
+
+/* Iterative Fibonacci — O(n) time, O(1) space */
+long fib_iter(int n) {
+    if (n &lt;= 1) return n;
+    long a = 0, b = 1;
+    for (int i = 2; i &lt;= n; i++) {
+        long tmp = a + b;
+        a = b;
+        b = tmp;
+    }
+    return b;
+}
+
+int main(void) {
+    memset(memo, -1, sizeof(memo));
+
+    /* Compare all three — they produce the same results */
+    for (int i = 0; i &lt;= 10; i++) {
+        printf("fib(%2d) = %ld\n", i, fib_iter(i));
+    }
+    return 0;
+}</code></pre>
+
+    <h2>Recursion vs Iteration Tradeoffs</h2>
+    <table>
+      <thead><tr><th>Aspect</th><th>Recursion</th><th>Iteration</th></tr></thead>
+      <tbody>
+        <tr><td>Code clarity</td><td>Often cleaner for tree/graph traversal</td><td>Clearer for simple loops</td></tr>
+        <tr><td>Stack memory</td><td>O(depth) stack frames</td><td>O(1) typically</td></tr>
+        <tr><td>Stack overflow risk</td><td>Yes — deep recursion crashes</td><td>No</td></tr>
+        <tr><td>Performance</td><td>Function call overhead</td><td>Usually faster</td></tr>
+        <tr><td>Best for</td><td>Trees, graphs, divide-and-conquer</td><td>Simple counting, array processing</td></tr>
+        <tr><td>Tail recursion</td><td>Compiler may optimise to a loop</td><td>N/A</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Practical Recursion: Directory Tree Walk</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;dirent.h&gt;
+#include &lt;string.h&gt;
+
+void walk_dir(const char *path, int depth) {
+    DIR *dir = opendir(path);
+    if (!dir) return;
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry-&gt;d_name, ".") == 0 || strcmp(entry-&gt;d_name, "..") == 0) {
+            continue;
+        }
+        /* Indent by depth */
+        for (int i = 0; i &lt; depth; i++) printf("  ");
+        printf("%s\n", entry-&gt;d_name);
+
+        if (entry-&gt;d_type == DT_DIR) {
+            char subpath[1024];
+            snprintf(subpath, sizeof(subpath), "%s/%s", path, entry-&gt;d_name);
+            walk_dir(subpath, depth + 1);  /* recurse into subdirectory */
+        }
+    }
+    closedir(dir);
+}
+
+int main(void) {
+    walk_dir(".", 0);
+    return 0;
+}</code></pre>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>No base case</strong> — Infinite recursion eventually hits the stack size limit and crashes with a <span class="glossary-term" data-term="segfault">segfault</span> (stack overflow). Always verify your base case terminates for all valid inputs.</li>
+        <li><strong>Base case unreachable</strong> — If the recursive call doesn't move toward the base case (e.g., calling <code>f(n)</code> instead of <code>f(n-1)</code>), you still get infinite recursion.</li>
+        <li><strong>Exponential time without memoisation</strong> — Naive recursive Fibonacci computes <code>fib(n-1)</code> and <code>fib(n-2)</code> independently, redoing vast amounts of work. For fib(40), this is ~2 billion function calls. Always memoize or convert to iteration for repeated subproblems.</li>
+      </ul>
+    </div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Sum of digits</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a recursive function <code>int digit_sum(int n)</code> that returns the sum of all digits of a non-negative integer. E.g., <code>digit_sum(123)</code> → 6.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Base case: n < 10, return n. Recursive case: return (n % 10) + digit_sum(n / 10). Integer division drops the last digit.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Binary search (recursive)</span>
+        </div>
+        <div class="exercise-body">
+          <p>Implement recursive binary search: <code>int bsearch_r(int *arr, int lo, int hi, int target)</code>. Returns the index of <code>target</code> or -1 if not found. The array is sorted in ascending order.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Base case: lo > hi → return -1. Mid = (lo+hi)/2. If arr[mid]==target return mid. If target < arr[mid], recurse on left half (lo, mid-1). Otherwise recurse on right (mid+1, hi).</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Implement merge sort</span>
+        </div>
+        <div class="exercise-body">
+          <p>Implement merge sort recursively. It should sort an integer array in place (using a temporary buffer for the merge step). Verify it runs in O(n log n) by timing it against a large array.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Split array in half, recursively sort each half, then merge the two sorted halves into a temp buffer, and copy back. The merge step is O(n); there are O(log n) levels of recursion. Use clock() from time.h to measure.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-rec">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. What is the base case in recursion?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">The first recursive call</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">The condition that stops recursion</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">The return type</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">The stack frame</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">The base case returns a value without making another recursive call. Without it, recursion never terminates.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. What happens if a recursive function has no base case?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">It returns 0</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">It compiles but prints garbage</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">Stack overflow (infinite recursion)</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">It loops silently</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">Without a base case the function calls itself forever, pushing frames until the stack exhausts its ~8 MB limit, causing SIGSEGV.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. Compared to an iterative solution, recursion typically:</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">Uses less memory</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">Uses more stack memory per call</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">Is always faster</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">Is impossible in C</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">Each recursive call pushes a stack frame (local variables, return address, saved registers). Deep recursion can overflow the stack.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Recursion</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 3</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_rec_1', correct: 1 },
+  { id: 'q_rec_2', correct: 2 },
+  { id: 'q_rec_3', correct: 1 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-rec', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>
