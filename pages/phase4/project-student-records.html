@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project: Student Records — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 4 · Project 2</span>
+      <span class="meta-badge time">⏱ ~75 min build time</span>
+    </div>
+
+    <h1>Project: Student Records System</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Project Goal</div>
+      <p>Build an in-memory student records system using structs and a dynamic array. This project demonstrates how real databases work at their most basic level: records are structs, operations are functions that operate on arrays of structs, and queries are loops with conditionals.</p>
+    </div>
+
+    <h2>Project Specification</h2>
+    <ul>
+      <li>Store student records: ID, name, age, GPA</li>
+      <li>Operations: add student, remove by ID, search by name, display all</li>
+      <li>Dynamic array that grows as needed (no fixed limit)</li>
+      <li>Print a formatted table with column headers</li>
+      <li>Compute and display class statistics: average GPA, highest/lowest</li>
+      <li>Sort records by GPA (descending) or name (alphabetical)</li>
+    </ul>
+
+    <h2>Step 1: Data Model</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 1 — data structures</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+#define NAME_MAX 50
+
+typedef struct {
+    int    id;
+    char   name[NAME_MAX];
+    int    age;
+    double gpa;
+} Student;
+
+typedef struct {
+    Student *data;
+    int      size;
+    int      capacity;
+    int      next_id;
+} Records;
+
+Records *records_new(void) {
+    Records *r = malloc(sizeof(Records));
+    if (!r) return NULL;
+    r-&gt;data = malloc(4 * sizeof(Student));
+    if (!r-&gt;data) { free(r); return NULL; }
+    r-&gt;size = 0;
+    r-&gt;capacity = 4;
+    r-&gt;next_id = 1;
+    return r;
+}
+
+void records_free(Records *r) {
+    if (!r) return;
+    free(r-&gt;data);
+    free(r);
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Step 2: Add and Remove</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 2 — add/remove operations</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">/* Returns the new student's ID, or -1 on failure */
+int records_add(Records *r, const char *name, int age, double gpa) {
+    /* Grow if needed */
+    if (r-&gt;size == r-&gt;capacity) {
+        int newcap = r-&gt;capacity * 2;
+        Student *tmp = realloc(r-&gt;data, newcap * sizeof(Student));
+        if (!tmp) return -1;
+        r-&gt;data = tmp;
+        r-&gt;capacity = newcap;
+    }
+
+    Student *s = &r-&gt;data[r-&gt;size];
+    s-&gt;id  = r-&gt;next_id++;
+    s-&gt;age = age;
+    s-&gt;gpa = gpa;
+    strncpy(s-&gt;name, name, NAME_MAX - 1);
+    s-&gt;name[NAME_MAX - 1] = '\0';
+    r-&gt;size++;
+    return s-&gt;id;
+}
+
+/* Returns 1 if found and removed, 0 if not found */
+int records_remove(Records *r, int id) {
+    for (int i = 0; i &lt; r-&gt;size; i++) {
+        if (r-&gt;data[i].id == id) {
+            /* Shift remaining records down */
+            for (int j = i; j &lt; r-&gt;size - 1; j++) {
+                r-&gt;data[j] = r-&gt;data[j + 1];
+            }
+            r-&gt;size--;
+            return 1;
+        }
+    }
+    return 0;
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Step 3: Search and Display</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 3 — search and display</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">/* Search by name (case-insensitive partial match) */
+void records_search(const Records *r, const char *query) {
+    int found = 0;
+    printf("Search results for '%s':\n", query);
+    print_header();
+    for (int i = 0; i &lt; r-&gt;size; i++) {
+        /* Use strcasestr if available, or manual search */
+        if (strstr(r-&gt;data[i].name, query)) {
+            print_record(&r-&gt;data[i]);
+            found++;
+        }
+    }
+    if (found == 0) printf("  (no results)\n");
+    else printf("%d result(s)\n", found);
+}
+
+static void print_header(void) {
+    printf("┌─────┬──────────────────────┬─────┬───────┐\n");
+    printf("│ ID  │ Name                 │ Age │ GPA   │\n");
+    printf("├─────┼──────────────────────┼─────┼───────┤\n");
+}
+
+static void print_record(const Student *s) {
+    printf("│ %-3d │ %-20s │ %-3d │ %.2f  │\n",
+           s-&gt;id, s-&gt;name, s-&gt;age, s-&gt;gpa);
+}
+
+void records_display(const Records *r) {
+    if (r-&gt;size == 0) { printf("No records.\n"); return; }
+    print_header();
+    for (int i = 0; i &lt; r-&gt;size; i++) print_record(&r-&gt;data[i]);
+    printf("└─────┴──────────────────────┴─────┴───────┘\n");
+    printf("%d student(s)\n", r-&gt;size);
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Step 4: Sort and Statistics</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 4 — sort and stats</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">#include &lt;stdlib.h&gt;
+
+/* qsort comparator: descending GPA */
+static int cmp_gpa_desc(const void *a, const void *b) {
+    const Student *sa = a, *sb = b;
+    if (sb-&gt;gpa &gt; sa-&gt;gpa) return 1;
+    if (sb-&gt;gpa &lt; sa-&gt;gpa) return -1;
+    return 0;
+}
+
+/* qsort comparator: alphabetical by name */
+static int cmp_name(const void *a, const void *b) {
+    return strcmp(((const Student *)a)-&gt;name, ((const Student *)b)-&gt;name);
+}
+
+void records_sort_by_gpa(Records *r) {
+    qsort(r-&gt;data, r-&gt;size, sizeof(Student), cmp_gpa_desc);
+}
+
+void records_sort_by_name(Records *r) {
+    qsort(r-&gt;data, r-&gt;size, sizeof(Student), cmp_name);
+}
+
+void records_stats(const Records *r) {
+    if (r-&gt;size == 0) { printf("No data.\n"); return; }
+    double sum = 0, hi = r-&gt;data[0].gpa, lo = r-&gt;data[0].gpa;
+    int hi_idx = 0, lo_idx = 0;
+    for (int i = 0; i &lt; r-&gt;size; i++) {
+        sum += r-&gt;data[i].gpa;
+        if (r-&gt;data[i].gpa &gt; hi) { hi = r-&gt;data[i].gpa; hi_idx = i; }
+        if (r-&gt;data[i].gpa &lt; lo) { lo = r-&gt;data[i].gpa; lo_idx = i; }
+    }
+    printf("Students: %d\n", r-&gt;size);
+    printf("Avg GPA:  %.2f\n", sum / r-&gt;size);
+    printf("Highest:  %s (%.2f)\n", r-&gt;data[hi_idx].name, hi);
+    printf("Lowest:   %s (%.2f)\n", r-&gt;data[lo_idx].name, lo);
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Complete Reference Implementation</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal complete main() and menu loop</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">/* main.c — Student Records main loop
+   Compile: gcc -Wall -o records main.c */
+
+int main(void) {
+    Records *r = records_new();
+    if (!r) { fprintf(stderr, "Out of memory\n"); return 1; }
+
+    /* Seed some data */
+    records_add(r, "Alice Chen",   20, 3.85);
+    records_add(r, "Bob Martinez", 22, 3.20);
+    records_add(r, "Carol Singh",  21, 3.95);
+    records_add(r, "David Kim",    23, 2.75);
+
+    char line[128];
+    int running = 1;
+
+    while (running) {
+        printf("\n1. Display all  2. Add  3. Remove  4. Search\n");
+        printf("5. Sort by GPA  6. Sort by name  7. Stats  0. Quit\n");
+        printf("Choice: ");
+        fflush(stdout);
+
+        if (!fgets(line, sizeof(line), stdin)) break;
+        int choice = atoi(line);
+
+        switch (choice) {
+            case 1: records_display(r); break;
+            case 2: {
+                char name[NAME_MAX]; int age; double gpa;
+                printf("Name: "); fgets(name, NAME_MAX, stdin);
+                name[strcspn(name, "\n")] = '\0';
+                printf("Age: "); fgets(line, sizeof(line), stdin);
+                age = atoi(line);
+                printf("GPA: "); fgets(line, sizeof(line), stdin);
+                gpa = atof(line);
+                int id = records_add(r, name, age, gpa);
+                printf("Added with ID %d\n", id);
+                break;
+            }
+            case 3: {
+                printf("Remove ID: "); fgets(line, sizeof(line), stdin);
+                int id = atoi(line);
+                printf(records_remove(r, id) ? "Removed.\n" : "Not found.\n");
+                break;
+            }
+            case 4: {
+                printf("Search name: "); fgets(line, sizeof(line), stdin);
+                line[strcspn(line, "\n")] = '\0';
+                records_search(r, line);
+                break;
+            }
+            case 5: records_sort_by_gpa(r); records_display(r); break;
+            case 6: records_sort_by_name(r); records_display(r); break;
+            case 7: records_stats(r); break;
+            case 0: running = 0; break;
+            default: printf("Unknown option.\n");
+        }
+    }
+
+    records_free(r);
+    printf("Goodbye!\n");
+    return 0;
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Extensions to Try</h2>
+    <ul>
+      <li>Add input validation: GPA must be 0.0–4.0, age must be positive</li>
+      <li>Save and load records from a CSV file (see Phase 2: File I/O)</li>
+      <li>Add an edit operation to update an existing student's fields</li>
+      <li>Use a hash map instead of linear search for O(1) lookup by ID</li>
+    </ul>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Project</div>
+      <div class="panel-value">Student Records</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 4</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Concepts Used</div>
+      <div style="font-size:0.7rem;color:var(--text-dim);line-height:1.6;">
+        Structs<br>Dynamic arrays<br>qsort/comparators<br>String operations
+      </div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+document.addEventListener('DOMContentLoaded', () => {
+  const id = 'project-student-records';
+  const btn = document.createElement('button');
+  btn.textContent = 'Mark Project Complete';
+  btn.className = 'btn-nav primary';
+  btn.style.marginTop = '20px';
+  btn.addEventListener('click', () => {
+    window.markLessonComplete && window.markLessonComplete(id);
+    window.recordActivity && window.recordActivity();
+    btn.textContent = '✓ Completed';
+    btn.disabled = true;
+  });
+  document.querySelector('#lesson-nav')?.before(btn);
+  if (window.isComplete && window.isComplete(id)) {
+    btn.textContent = '✓ Completed';
+    btn.disabled = true;
+  }
+});
+</script>
+</body>
+</html>

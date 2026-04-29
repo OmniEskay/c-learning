@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project: Mini Shell — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlights/base16/tomorrow-night.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 4 · Project 4</span>
+      <span class="meta-badge time">⏱ ~120 min build time</span>
+    </div>
+
+    <h1>Project: Mini Shell</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Project Goal</div>
+      <p>Build a minimal Unix shell that can execute programs, handle built-in commands (<code>cd</code>, <code>exit</code>), and chain commands with pipes. This project teaches how Bash and zsh work internally — <code>fork()</code> creates a child process, <code>exec()</code> replaces it with a new program, and <code>wait()</code> lets the parent collect the exit status. Every terminal session you've ever opened runs this exact pattern.</p>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Platform Note</div>
+      <p>This project uses POSIX system calls (<code>fork</code>, <code>execvp</code>, <code>wait</code>, <code>pipe</code>) available on Linux and macOS. It does not work on Windows without WSL2. This is intentional — learning POSIX C is part of systems programming.</p>
+    </div>
+
+    <h2>Project Specification</h2>
+    <ul>
+      <li>Print a prompt, read a command line, execute it</li>
+      <li>Built-in commands: <code>cd &lt;dir&gt;</code>, <code>pwd</code>, <code>exit</code>, <code>help</code></li>
+      <li>Execute external programs using <code>fork()</code> + <code>execvp()</code></li>
+      <li>Handle <code>Ctrl+C</code> gracefully (don't kill the shell)</li>
+      <li>Support pipes: <code>ls | grep .c | wc -l</code></li>
+      <li>Return exit status of last command (<code>echo $?</code> equivalent)</li>
+    </ul>
+
+    <h2>Key Concepts: fork, exec, wait</h2>
+    <div class="memory-diagram">How a shell runs "ls -la":
+
+Shell process (PID 1234)
+    │
+    ├─ fork() ─────────────────────────────────┐
+    │                                           │
+    │  Parent process (PID 1234)                │  Child process (PID 1235)
+    │  - wait(NULL)  ← blocks until child done  │  - execvp("ls", ["ls","-la",NULL])
+    │                                           │  - process image replaced with ls
+    │                                           │  - ls runs, prints output
+    │                                           │  - ls exits with code 0
+    │                                           │
+    │  ←──────────────────────────────────────┤
+    │  wait() returns, child is reaped          │
+    │  last_exit_status = 0                     │
+    │  print prompt again                       │
+
+fork() return values:
+  - In parent process: returns child's PID (> 0)
+  - In child process:  returns 0
+  - On error:          returns -1</div>
+
+    <h2>Step 1: Read-Eval-Print Loop</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 1 — REPL structure</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">/* shell.c — Step 1: basic read-eval loop
+   Compile: gcc -Wall -o shell shell.c */
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;sys/wait.h&gt;
+#include &lt;errno.h&gt;
+
+#define MAX_ARGS 64
+#define MAX_LINE 1024
+
+/* Split line into argv[] array, returns argc */
+int parse_args(char *line, char *argv[], int max_args) {
+    int argc = 0;
+    char *tok = strtok(line, " \t\n");
+    while (tok && argc &lt; max_args - 1) {
+        argv[argc++] = tok;
+        tok = strtok(NULL, " \t\n");
+    }
+    argv[argc] = NULL;
+    return argc;
+}
+
+int main(void) {
+    char line[MAX_LINE];
+    char *argv[MAX_ARGS];
+
+    while (1) {
+        printf("mysh$ ");
+        fflush(stdout);
+
+        if (!fgets(line, sizeof(line), stdin)) {
+            printf("\n");
+            break;  /* EOF (Ctrl+D) */
+        }
+
+        int argc = parse_args(line, argv, MAX_ARGS);
+        if (argc == 0) continue;
+
+        /* TODO: handle built-ins and execute commands */
+        printf("Command: %s, %d args\n", argv[0], argc);
+    }
+
+    return 0;
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Step 2: Built-in Commands</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 2 — built-in commands</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">/* Returns 1 if command was a built-in (handled), 0 if not */
+int handle_builtin(char *argv[], int *last_status) {
+    if (!argv[0]) return 0;
+
+    if (strcmp(argv[0], "exit") == 0) {
+        int code = argv[1] ? atoi(argv[1]) : 0;
+        exit(code);
+    }
+
+    if (strcmp(argv[0], "cd") == 0) {
+        const char *dir = argv[1] ? argv[1] : getenv("HOME");
+        if (!dir) dir = "/";
+        if (chdir(dir) != 0) {
+            fprintf(stderr, "cd: %s: %s\n", dir, strerror(errno));
+            *last_status = 1;
+        } else {
+            *last_status = 0;
+        }
+        return 1;
+    }
+
+    if (strcmp(argv[0], "pwd") == 0) {
+        char cwd[1024];
+        if (getcwd(cwd, sizeof(cwd))) {
+            printf("%s\n", cwd);
+            *last_status = 0;
+        } else {
+            perror("pwd");
+            *last_status = 1;
+        }
+        return 1;
+    }
+
+    if (strcmp(argv[0], "help") == 0) {
+        printf("Built-ins: cd, pwd, exit, help\n");
+        printf("Run any program: ls, grep, gcc, etc.\n");
+        *last_status = 0;
+        return 1;
+    }
+
+    return 0;  /* not a built-in */
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Step 3: fork + execvp</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 3 — executing external commands</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">#include &lt;unistd.h&gt;
+#include &lt;sys/wait.h&gt;
+
+int execute(char *argv[]) {
+    pid_t pid = fork();
+
+    if (pid &lt; 0) {
+        perror("fork");
+        return -1;
+    }
+
+    if (pid == 0) {
+        /* --- CHILD PROCESS --- */
+        execvp(argv[0], argv);
+        /* execvp only returns on failure */
+        fprintf(stderr, "%s: %s\n", argv[0], strerror(errno));
+        exit(127);  /* 127 = command not found convention */
+    }
+
+    /* --- PARENT PROCESS --- */
+    int status;
+    waitpid(pid, &status, 0);
+
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);   /* normal exit */
+    }
+    if (WIFSIGNALED(status)) {
+        fprintf(stderr, "Killed by signal %d\n", WTERMSIG(status));
+        return 128 + WTERMSIG(status);
+    }
+    return -1;
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Step 4: Pipes</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 4 — pipe implementation</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">/* Execute a two-command pipeline: cmd1 | cmd2
+   e.g. parse "ls | grep .c" into two argv arrays */
+
+int execute_pipe(char *argv1[], char *argv2[]) {
+    int pipefd[2];  /* pipefd[0] = read end, pipefd[1] = write end */
+    if (pipe(pipefd) &lt; 0) { perror("pipe"); return -1; }
+
+    pid_t pid1 = fork();
+    if (pid1 == 0) {
+        /* Child 1: runs cmd1, writes to pipe */
+        dup2(pipefd[1], STDOUT_FILENO);  /* redirect stdout to pipe write end */
+        close(pipefd[0]);
+        close(pipefd[1]);
+        execvp(argv1[0], argv1);
+        perror(argv1[0]);
+        exit(127);
+    }
+
+    pid_t pid2 = fork();
+    if (pid2 == 0) {
+        /* Child 2: runs cmd2, reads from pipe */
+        dup2(pipefd[0], STDIN_FILENO);   /* redirect stdin to pipe read end */
+        close(pipefd[0]);
+        close(pipefd[1]);
+        execvp(argv2[0], argv2);
+        perror(argv2[0]);
+        exit(127);
+    }
+
+    /* Parent: close both ends, wait for both children */
+    close(pipefd[0]);
+    close(pipefd[1]);
+
+    int status1, status2;
+    waitpid(pid1, &status1, 0);
+    waitpid(pid2, &status2, 0);
+
+    return WIFEXITED(status2) ? WEXITSTATUS(status2) : -1;
+}
+
+/* Split command line at '|' */
+int has_pipe(char *line) {
+    return strchr(line, '|') != NULL;
+}
+
+/* Parse "ls -la | grep .c" into two argv arrays */
+void parse_pipe(char *line, char *argv1[], char *argv2[]) {
+    char *pipe_pos = strchr(line, '|');
+    *pipe_pos = '\0';   /* split the string at | */
+    parse_args(line, argv1, MAX_ARGS);
+    parse_args(pipe_pos + 1, argv2, MAX_ARGS);
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Complete Mini Shell</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal complete shell implementation</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">/* shell.c — Complete mini shell
+   Compile: gcc -Wall -o mysh shell.c
+   Run: ./mysh */
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;sys/wait.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;signal.h&gt;
+
+#define MAX_ARGS 64
+#define MAX_LINE 1024
+
+/* Ignore SIGINT in the shell (so Ctrl+C doesn't kill it) */
+void setup_signals(void) {
+    signal(SIGINT, SIG_IGN);   /* shell ignores Ctrl+C */
+    signal(SIGQUIT, SIG_IGN);  /* shell ignores Ctrl+\ */
+}
+
+int parse_args(char *line, char *argv[], int max) {
+    int n = 0;
+    char *t = strtok(line, " \t\n");
+    while (t && n &lt; max - 1) { argv[n++] = t; t = strtok(NULL, " \t\n"); }
+    argv[n] = NULL;
+    return n;
+}
+
+int handle_builtin(char *argv[], int *status) {
+    if (!argv[0]) return 0;
+    if (!strcmp(argv[0], "exit"))  { exit(argv[1] ? atoi(argv[1]) : 0); }
+    if (!strcmp(argv[0], "cd")) {
+        const char *d = argv[1] ?: getenv("HOME") ?: "/";
+        *status = chdir(d) ? (perror("cd"), 1) : 0;
+        return 1;
+    }
+    if (!strcmp(argv[0], "pwd")) {
+        char cwd[1024];
+        if (getcwd(cwd, sizeof(cwd))) { puts(cwd); *status = 0; }
+        else { perror("pwd"); *status = 1; }
+        return 1;
+    }
+    return 0;
+}
+
+int execute_cmd(char *argv[]) {
+    pid_t pid = fork();
+    if (pid &lt; 0) { perror("fork"); return -1; }
+    if (pid == 0) {
+        signal(SIGINT, SIG_DFL);  /* child restores default Ctrl+C */
+        execvp(argv[0], argv);
+        fprintf(stderr, "%s: %s\n", argv[0], strerror(errno));
+        exit(127);
+    }
+    int st; waitpid(pid, &st, 0);
+    return WIFEXITED(st) ? WEXITSTATUS(st) : -1;
+}
+
+int main(void) {
+    setup_signals();
+    char line[MAX_LINE];
+    char *argv[MAX_ARGS], *argv2[MAX_ARGS];
+    int last_status = 0;
+
+    while (1) {
+        char cwd[256]; getcwd(cwd, sizeof(cwd));
+        printf("\033[32mmysh\033[0m:\033[34m%s\033[0m$ ", cwd);
+        fflush(stdout);
+
+        if (!fgets(line, sizeof(line), stdin)) { puts(""); break; }
+        line[strcspn(line, "\n")] = '\0';
+        if (!*line) continue;
+
+        char line_copy[MAX_LINE];
+        strncpy(line_copy, line, sizeof(line_copy) - 1);
+
+        if (strchr(line_copy, '|')) {
+            char *pipe = strchr(line_copy, '|');
+            *pipe = '\0';
+            int pfd[2]; pipe(pfd);
+            /* run left side writing to pipe, right side reading from pipe */
+            parse_args(line_copy, argv, MAX_ARGS);
+            parse_args(pipe + 1, argv2, MAX_ARGS);
+            /* simplified: execute_pipe as shown above */
+            last_status = execute_pipe(argv, argv2);
+        } else {
+            parse_args(line_copy, argv, MAX_ARGS);
+            if (!handle_builtin(argv, &last_status)) {
+                last_status = execute_cmd(argv);
+            }
+        }
+    }
+    return 0;
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Extensions to Try</h2>
+    <ul>
+      <li>Add I/O redirection: <code>cmd &gt; file.txt</code> and <code>cmd &lt; input.txt</code></li>
+      <li>Add background jobs: <code>cmd &amp;</code> — don't wait for the child</li>
+      <li>Add a command history (up arrow) using the readline library</li>
+      <li>Handle multi-pipe chains: <code>cmd1 | cmd2 | cmd3</code></li>
+      <li>Add environment variable expansion: <code>echo $HOME</code></li>
+    </ul>
+
+    <div class="callout info">
+      <div class="callout-icon">🎉 Course Complete!</div>
+      <p>If you've built all four projects, you've gone from zero to writing a Unix shell in C. You understand memory, pointers, data structures, file I/O, and process management. These are the building blocks of every operating system, database, and language runtime on the planet. The path from here leads to: kernel development, embedded systems, compilers, databases, or systems security.</p>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Project</div>
+      <div class="panel-value">Mini Shell</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 4</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Concepts Used</div>
+      <div style="font-size:0.7rem;color:var(--text-dim);line-height:1.6;">
+        fork/exec/wait<br>Pipes + dup2<br>Signal handling<br>String parsing<br>POSIX APIs
+      </div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+document.addEventListener('DOMContentLoaded', () => {
+  const id = 'project-mini-shell';
+  const btn = document.createElement('button');
+  btn.textContent = 'Mark Project Complete';
+  btn.className = 'btn-nav primary';
+  btn.style.marginTop = '20px';
+  btn.addEventListener('click', () => {
+    window.markLessonComplete && window.markLessonComplete(id);
+    window.recordActivity && window.recordActivity();
+    btn.textContent = '✓ Completed';
+    btn.disabled = true;
+  });
+  document.querySelector('#lesson-nav')?.before(btn);
+  if (window.isComplete && window.isComplete(id)) {
+    btn.textContent = '✓ Completed';
+    btn.disabled = true;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project: Calculator — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 4 · Project 1</span>
+      <span class="meta-badge time">⏱ ~60 min build time</span>
+    </div>
+
+    <h1>Project: CLI Calculator</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Project Goal</div>
+      <p>Build a command-line calculator that accepts expressions like <code>3.5 + 2 * (4 - 1)</code>, handles operator precedence, validates input, and loops until the user quits. This project exercises functions, loops, input validation, and switch-based dispatch — all the Phase 1 fundamentals applied together.</p>
+    </div>
+
+    <h2>Project Specification</h2>
+    <ul>
+      <li>Accept two numbers and an operator: <code>10 / 3</code> → <code>3.333333</code></li>
+      <li>Supported operators: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code></li>
+      <li>Handle division and modulo by zero gracefully (print error, don't crash)</li>
+      <li>Loop continuously until user types <code>q</code> or <code>quit</code></li>
+      <li>Show a history of the last 10 calculations</li>
+      <li>Validate all input (non-numeric input, invalid operators)</li>
+    </ul>
+
+    <h2>Step 1: Skeleton — Basic Structure</h2>
+    <p>Start with the minimal structure: read two numbers and an operator, compute, repeat.</p>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 1 skeleton</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">/* calc.c — Step 1: basic skeleton */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(void) {
+    double a, b;
+    char op;
+
+    printf("Calculator (q to quit)\n");
+    printf("Usage: 10 + 3\n\n");
+
+    while (1) {
+        printf("&gt; ");
+        if (scanf("%lf %c %lf", &a, &op, &b) != 3) {
+            /* TODO: handle non-numeric input */
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF);
+            continue;
+        }
+
+        /* TODO: compute result based on op */
+        printf("= ?\n");
+    }
+
+    return 0;
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Step 2: Computation Function</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 2 — compute function</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;math.h&gt;
+#include &lt;stdbool.h&gt;
+
+/* Returns false if the operation is invalid (e.g., div by zero) */
+bool compute(double a, char op, double b, double *result) {
+    switch (op) {
+        case '+': *result = a + b; return true;
+        case '-': *result = a - b; return true;
+        case '*': *result = a * b; return true;
+        case '/':
+            if (b == 0.0) {
+                fprintf(stderr, "Error: division by zero\n");
+                return false;
+            }
+            *result = a / b;
+            return true;
+        case '%':
+            if ((long long)b == 0) {
+                fprintf(stderr, "Error: modulo by zero\n");
+                return false;
+            }
+            *result = fmod(a, b);
+            return true;
+        default:
+            fprintf(stderr, "Error: unknown operator '%c'\n", op);
+            return false;
+    }
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Step 3: Input Validation</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 3 — input handling</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">/* Read a line of input and check for quit command */
+#include &lt;string.h&gt;
+
+bool read_expression(double *a, char *op, double *b) {
+    char line[128];
+    if (!fgets(line, sizeof(line), stdin)) return false;
+
+    /* Trim leading whitespace and check for quit */
+    char trimmed[128];
+    if (sscanf(line, "%127s", trimmed) == 1) {
+        if (strcmp(trimmed, "q") == 0 || strcmp(trimmed, "quit") == 0) {
+            return false;
+        }
+    }
+
+    /* Parse expression */
+    if (sscanf(line, "%lf %c %lf", a, op, b) != 3) {
+        fprintf(stderr, "Invalid input. Use format: 10 + 3\n");
+        *a = *b = 0; *op = '?';
+        return true;   /* don't quit, but mark as invalid */
+    }
+    return true;
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Step 4: History Feature</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 4 — history</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">#define HISTORY_SIZE 10
+
+typedef struct {
+    double a, b, result;
+    char op;
+} Entry;
+
+Entry history[HISTORY_SIZE];
+int history_count = 0;
+
+void history_add(double a, char op, double b, double result) {
+    /* Shift entries if full */
+    if (history_count == HISTORY_SIZE) {
+        for (int i = 0; i &lt; HISTORY_SIZE - 1; i++) {
+            history[i] = history[i + 1];
+        }
+        history_count = HISTORY_SIZE - 1;
+    }
+    history[history_count++] = (Entry){a, b, result, op};
+}
+
+void history_print(void) {
+    if (history_count == 0) { printf("No history.\n"); return; }
+    printf("--- History ---\n");
+    for (int i = 0; i &lt; history_count; i++) {
+        Entry *e = &history[i];
+        printf("  %g %c %g = %g\n", e-&gt;a, e-&gt;op, e-&gt;b, e-&gt;result);
+    }
+    printf("---------------\n");
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Complete Reference Implementation</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal complete implementation</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">/* calculator.c — Complete implementation
+   Compile: gcc -Wall -o calc calculator.c -lm */
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;math.h&gt;
+#include &lt;stdbool.h&gt;
+
+#define HISTORY_MAX 10
+
+typedef struct { double a, b, result; char op; } Entry;
+static Entry hist[HISTORY_MAX];
+static int hist_n = 0;
+
+static void hist_add(double a, char op, double b, double r) {
+    if (hist_n == HISTORY_MAX) {
+        for (int i = 0; i &lt; HISTORY_MAX - 1; i++) hist[i] = hist[i+1];
+        hist_n = HISTORY_MAX - 1;
+    }
+    hist[hist_n++] = (Entry){a, b, r, op};
+}
+
+static void hist_print(void) {
+    printf("─── History ────────────────────\n");
+    if (hist_n == 0) { printf("  (empty)\n"); return; }
+    for (int i = 0; i &lt; hist_n; i++)
+        printf("  %g %c %g = %g\n", hist[i].a, hist[i].op, hist[i].b, hist[i].result);
+    printf("────────────────────────────────\n");
+}
+
+static bool compute(double a, char op, double b, double *res) {
+    switch (op) {
+        case '+': *res = a + b; return true;
+        case '-': *res = a - b; return true;
+        case '*': *res = a * b; return true;
+        case '/':
+            if (b == 0.0) { fprintf(stderr, "Error: division by zero\n"); return false; }
+            *res = a / b;
+            return true;
+        case '%':
+            if (b == 0.0) { fprintf(stderr, "Error: modulo by zero\n"); return false; }
+            *res = fmod(a, b);
+            return true;
+        default:
+            fprintf(stderr, "Unknown operator '%c'. Use: + - * / %%\n", op);
+            return false;
+    }
+}
+
+int main(void) {
+    char line[256];
+    printf("C Calculator — type 'quit' to exit, 'history' for log\n");
+    printf("Usage: &lt;number&gt; &lt;op&gt; &lt;number&gt;  e.g. 3.14 * 2\n\n");
+
+    while (1) {
+        printf("&gt; ");
+        fflush(stdout);
+
+        if (!fgets(line, sizeof(line), stdin)) break;
+
+        char first[64];
+        sscanf(line, "%63s", first);
+        if (strcmp(first, "q") == 0 || strcmp(first, "quit") == 0) break;
+        if (strcmp(first, "history") == 0) { hist_print(); continue; }
+
+        double a, b, result;
+        char op;
+        if (sscanf(line, "%lf %c %lf", &a, &op, &b) != 3) {
+            fprintf(stderr, "Invalid input. Example: 10 + 3\n");
+            continue;
+        }
+
+        if (compute(a, op, b, &result)) {
+            printf("= %g\n", result);
+            hist_add(a, op, b, result);
+        }
+    }
+
+    printf("Goodbye!\n");
+    return 0;
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Extensions to Try</h2>
+    <ul>
+      <li>Add <code>^</code> for exponentiation using <code>pow()</code> from <code>&lt;math.h&gt;</code></li>
+      <li>Add a memory (<code>M+</code>, <code>MR</code>, <code>MC</code>) feature</li>
+      <li>Support parentheses with a recursive descent parser</li>
+      <li>Save history to a file and reload on startup</li>
+    </ul>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Project</div>
+      <div class="panel-value">Calculator</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 4</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Concepts Used</div>
+      <div style="font-size:0.7rem;color:var(--text-dim);line-height:1.6;">
+        Functions<br>Loops<br>switch<br>Input validation<br>Arrays of structs
+      </div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+document.addEventListener('DOMContentLoaded', () => {
+  const id = 'project-calculator';
+  const btn = document.createElement('button');
+  btn.textContent = 'Mark Project Complete';
+  btn.className = 'btn-nav primary';
+  btn.style.marginTop = '20px';
+  btn.addEventListener('click', () => {
+    window.markLessonComplete && window.markLessonComplete(id);
+    window.recordActivity && window.recordActivity();
+    btn.textContent = '✓ Completed';
+    btn.disabled = true;
+  });
+  document.querySelector('#lesson-nav')?.before(btn);
+  if (window.isComplete && window.isComplete(id)) {
+    btn.textContent = '✓ Completed';
+    btn.disabled = true;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project: File Management — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 4 · Project 3</span>
+      <span class="meta-badge time">⏱ ~90 min build time</span>
+    </div>
+
+    <h1>Project: File-Backed Records System</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Project Goal</div>
+      <p>Extend the Student Records system to persist data to disk. Records are stored in a binary file, loaded at startup, and saved on exit. Add search (by name or GPA range) and sort capabilities. This is how embedded databases work at their simplest level.</p>
+    </div>
+
+    <h2>Project Specification</h2>
+    <ul>
+      <li>All features of Project 2 (Student Records)</li>
+      <li>Auto-save to <code>students.dat</code> binary file on every change</li>
+      <li>Load from file at startup (create if not found)</li>
+      <li>Search by name substring or GPA range: <code>search gpa 3.0 4.0</code></li>
+      <li>Export to CSV: <code>export students.csv</code></li>
+      <li>Import from CSV file</li>
+    </ul>
+
+    <h2>Step 1: File Format and Load/Save</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 1 — binary file persistence</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;errno.h&gt;
+
+#define DB_FILE "students.dat"
+#define MAGIC   0x43534442  /* "CSDB" */
+#define VERSION 1
+
+/* File header — written at the start of the binary file */
+typedef struct {
+    unsigned int magic;    /* sanity check */
+    int          version;
+    int          count;
+    int          next_id;
+} FileHeader;
+
+int db_save(const Records *r) {
+    FILE *fp = fopen(DB_FILE, "wb");
+    if (!fp) { perror("save"); return -1; }
+
+    FileHeader hdr = {MAGIC, VERSION, r-&gt;size, r-&gt;next_id};
+    if (fwrite(&hdr, sizeof(hdr), 1, fp) != 1) {
+        perror("write header"); fclose(fp); return -1;
+    }
+    if (r-&gt;size &gt; 0) {
+        if ((int)fwrite(r-&gt;data, sizeof(Student), r-&gt;size, fp) != r-&gt;size) {
+            perror("write records"); fclose(fp); return -1;
+        }
+    }
+    if (fclose(fp) != 0) { perror("fclose"); return -1; }
+    return 0;
+}
+
+int db_load(Records *r) {
+    FILE *fp = fopen(DB_FILE, "rb");
+    if (!fp) {
+        if (errno == ENOENT) return 0;  /* file doesn't exist — OK */
+        perror("load"); return -1;
+    }
+
+    FileHeader hdr;
+    if (fread(&hdr, sizeof(hdr), 1, fp) != 1) {
+        fprintf(stderr, "Corrupt database (bad header)\n");
+        fclose(fp); return -1;
+    }
+    if (hdr.magic != MAGIC) {
+        fprintf(stderr, "Not a valid database file\n");
+        fclose(fp); return -1;
+    }
+
+    /* Allocate space for loaded records */
+    if (hdr.count &gt; 0) {
+        Student *data = malloc(hdr.count * sizeof(Student));
+        if (!data) { fclose(fp); return -1; }
+        if ((int)fread(data, sizeof(Student), hdr.count, fp) != hdr.count) {
+            fprintf(stderr, "Corrupt database (truncated)\n");
+            free(data); fclose(fp); return -1;
+        }
+        free(r-&gt;data);
+        r-&gt;data = data;
+        r-&gt;size = r-&gt;capacity = hdr.count;
+        r-&gt;next_id = hdr.next_id;
+    }
+    fclose(fp);
+    printf("Loaded %d record(s) from %s\n", hdr.count, DB_FILE);
+    return 0;
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Step 2: CSV Export and Import</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 2 — CSV export/import</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">int csv_export(const Records *r, const char *path) {
+    FILE *fp = fopen(path, "w");
+    if (!fp) { perror("export"); return -1; }
+
+    fprintf(fp, "id,name,age,gpa\n");   /* header row */
+    for (int i = 0; i &lt; r-&gt;size; i++) {
+        const Student *s = &r-&gt;data[i];
+        fprintf(fp, "%d,\"%s\",%d,%.2f\n", s-&gt;id, s-&gt;name, s-&gt;age, s-&gt;gpa);
+    }
+
+    if (fclose(fp) != 0) { perror("close"); return -1; }
+    printf("Exported %d records to %s\n", r-&gt;size, path);
+    return 0;
+}
+
+int csv_import(Records *r, const char *path) {
+    FILE *fp = fopen(path, "r");
+    if (!fp) { perror("import"); return -1; }
+
+    char line[256];
+    fgets(line, sizeof(line), fp);  /* skip header */
+
+    int imported = 0;
+    while (fgets(line, sizeof(line), fp)) {
+        int id_unused, age;
+        double gpa;
+        char name[NAME_MAX];
+        /* Parse: id,"name",age,gpa */
+        if (sscanf(line, "%*d,\"%49[^\"]\",%d,%lf", name, &age, &gpa) == 3) {
+            records_add(r, name, age, gpa);
+            imported++;
+        }
+    }
+    fclose(fp);
+    printf("Imported %d records from %s\n", imported, path);
+    return 0;
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Step 3: Advanced Search</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal Step 3 — search by GPA range</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">void records_search_gpa(const Records *r, double lo, double hi) {
+    int found = 0;
+    printf("Students with GPA in [%.2f, %.2f]:\n", lo, hi);
+    print_header();
+    for (int i = 0; i &lt; r-&gt;size; i++) {
+        if (r-&gt;data[i].gpa &gt;= lo && r-&gt;data[i].gpa &lt;= hi) {
+            print_record(&r-&gt;data[i]);
+            found++;
+        }
+    }
+    printf("└─────────────────────────────────────────────────┘\n");
+    printf("%d result(s)\n", found);
+}
+
+/* Parse the user's search command */
+void handle_search(Records *r, const char *cmd) {
+    /* "search name Alice" or "search gpa 3.0 4.0" */
+    char type[16], arg1[64], arg2[32];
+    int parts = sscanf(cmd, "search %15s %63s %31s", type, arg1, arg2);
+
+    if (parts &lt; 2) { printf("Usage: search name &lt;query&gt; | search gpa &lt;lo&gt; &lt;hi&gt;\n"); return; }
+
+    if (strcmp(type, "name") == 0) {
+        records_search(r, arg1);
+    } else if (strcmp(type, "gpa") == 0 && parts == 3) {
+        records_search_gpa(r, atof(arg1), atof(arg2));
+    } else {
+        printf("Unknown search type '%s'\n", type);
+    }
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Complete main with Command Parser</h2>
+    <div class="reveal-block">
+      <button class="reveal-toggle">▶ Reveal complete command-line parser</button>
+      <div class="reveal-content">
+        <pre><code class="language-c">/* main loop for file-backed records
+   Compile: gcc -Wall -o filedb main.c */
+
+int main(void) {
+    Records *r = records_new();
+    if (!r) return 1;
+    db_load(r);   /* load from disk at startup */
+
+    char line[256];
+    printf("File Records System. Commands: add, remove &lt;id&gt;, search, display,\n");
+    printf("  stats, sort gpa|name, export &lt;file&gt;, import &lt;file&gt;, quit\n\n");
+
+    while (1) {
+        printf("db&gt; "); fflush(stdout);
+        if (!fgets(line, sizeof(line), stdin)) break;
+        line[strcspn(line, "\n")] = '\0';  /* strip trailing newline */
+
+        if (strcmp(line, "quit") == 0 || strcmp(line, "q") == 0) break;
+        else if (strcmp(line, "display") == 0) records_display(r);
+        else if (strcmp(line, "stats") == 0) records_stats(r);
+        else if (strcmp(line, "sort gpa") == 0) { records_sort_by_gpa(r); db_save(r); }
+        else if (strcmp(line, "sort name") == 0) { records_sort_by_name(r); db_save(r); }
+        else if (strncmp(line, "search", 6) == 0) handle_search(r, line);
+        else if (strncmp(line, "export ", 7) == 0) csv_export(r, line + 7);
+        else if (strncmp(line, "import ", 7) == 0) { csv_import(r, line + 7); db_save(r); }
+        else if (strcmp(line, "add") == 0) {
+            char name[NAME_MAX]; int age; double gpa;
+            printf("Name: "); fgets(name, NAME_MAX, stdin); name[strcspn(name,"\n")]='\0';
+            printf("Age: "); fgets(line, sizeof(line), stdin); age = atoi(line);
+            printf("GPA: "); fgets(line, sizeof(line), stdin); gpa = atof(line);
+            int id = records_add(r, name, age, gpa);
+            printf("Added ID %d\n", id);
+            db_save(r);
+        }
+        else if (strncmp(line, "remove ", 7) == 0) {
+            int id = atoi(line + 7);
+            printf(records_remove(r, id) ? "Removed.\n" : "Not found.\n");
+            db_save(r);
+        }
+        else printf("Unknown command. Type 'quit' to exit.\n");
+    }
+
+    db_save(r);
+    records_free(r);
+    return 0;
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>Extensions to Try</h2>
+    <ul>
+      <li>Add transaction support: buffer changes, commit with <code>save</code> or rollback with <code>revert</code></li>
+      <li>Add an index file for fast ID lookup (sorted array of ID/offset pairs)</li>
+      <li>Support multiple record types (courses, instructors) with separate files</li>
+      <li>Add file locking (<code>flock()</code>) to prevent concurrent corruption</li>
+    </ul>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Project</div>
+      <div class="panel-value">File Management</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 4</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Concepts Used</div>
+      <div style="font-size:0.7rem;color:var(--text-dim);line-height:1.6;">
+        Binary file I/O<br>fread/fwrite<br>Error handling<br>CSV parsing<br>File headers
+      </div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+document.addEventListener('DOMContentLoaded', () => {
+  const id = 'project-file-management';
+  const btn = document.createElement('button');
+  btn.textContent = 'Mark Project Complete';
+  btn.className = 'btn-nav primary';
+  btn.style.marginTop = '20px';
+  btn.addEventListener('click', () => {
+    window.markLessonComplete && window.markLessonComplete(id);
+    window.recordActivity && window.recordActivity();
+    btn.textContent = '✓ Completed';
+    btn.disabled = true;
+  });
+  document.querySelector('#lesson-nav')?.before(btn);
+  if (window.isComplete && window.isComplete(id)) {
+    btn.textContent = '✓ Completed';
+    btn.disabled = true;
+  }
+});
+</script>
+</body>
+</html>
