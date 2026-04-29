@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Structures — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 2 · Lesson 9</span>
+      <span class="meta-badge time">⏱ ~30 min read + practice</span>
+    </div>
+
+    <h1>Structures</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>Structs are the foundation of C-based databases and data formats. SQLite's entire internal representation — B-tree pages, cells, cursors — is built from structs. The Linux kernel's <code>task_struct</code> (representing a process) has hundreds of fields. Network protocols like TCP/IP are specified as struct layouts that map directly to byte-level wire formats. Structs are how C represents the real world.</p>
+    </div>
+
+    <h2>Defining and Using Structs</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+/* Define a struct type */
+struct Point {
+    double x;
+    double y;
+};
+
+struct Student {
+    char name[50];
+    int  age;
+    double gpa;
+};
+
+int main(void) {
+    /* Declare and initialise */
+    struct Point p1 = {3.0, 4.0};
+    struct Student s1 = {"Alice", 20, 3.85};
+
+    /* Access fields with . operator */
+    printf("(%g, %g)\n", p1.x, p1.y);
+    printf("%s, age %d, GPA %.2f\n", s1.name, s1.age, s1.gpa);
+
+    /* Modify a field */
+    s1.age = 21;
+    strncpy(s1.name, "Alicia", sizeof(s1.name) - 1);
+
+    return 0;
+}</code></pre>
+
+    <h2>Memory Diagram: Struct Field Layout</h2>
+    <div class="memory-diagram">struct Student { char name[50]; int age; double gpa; };
+struct Student s = {"Alice", 20, 3.85};
+
+Address offsets within the struct:
+
+Offset:  0        50  52(pad)  56         64
+         ┌────────────┬────┬────┬──────────┐
+         │  name[50]  │age │pad │   gpa    │
+         │  "Alice\0" │ 20 │    │  3.85    │
+         └────────────┴────┴────┴──────────┘
+         50 bytes    4B  2B pad   8 bytes
+
+Total size: likely 64 bytes (with alignment padding)
+
+sizeof(struct Student) may be larger than 50+4+8=62
+because the compiler adds padding to align double (8 bytes)
+to an 8-byte boundary.
+
+Use __attribute__((packed)) to eliminate padding (rarely needed,
+reduces performance, can cause bus errors on some platforms).</div>
+
+    <h2>typedef for Cleaner Syntax</h2>
+    <p><span class="glossary-term" data-term="typedef">typedef</span> creates a type alias so you don't need to write <code>struct</code> every time:</p>
+    <pre><code class="language-c">/* Method 1: separate typedef */
+struct Point { double x; double y; };
+typedef struct Point Point;
+
+/* Method 2: combined (most common) */
+typedef struct {
+    double x;
+    double y;
+} Point;
+
+/* Method 3: self-referential structs (linked lists need the tag) */
+typedef struct Node {
+    int value;
+    struct Node *next;  /* must use "struct Node" here, not just "Node" */
+} Node;
+
+/* Usage */
+Point p = {1.0, 2.0};  /* no "struct" keyword needed */
+</code></pre>
+
+    <h2>Structs and Pointers</h2>
+    <p>When you have a pointer to a struct, use the <code>-&gt;</code> operator (arrow) to access fields. It's shorthand for <code>(*ptr).field</code>:</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+typedef struct {
+    char name[50];
+    int age;
+} Person;
+
+void birthday(Person *p) {
+    p-&gt;age++;   /* equivalent to: (*p).age++ */
+}
+
+int main(void) {
+    Person alice = {"Alice", 30};
+    birthday(&alice);
+    printf("%s is now %d\n", alice.name, alice.age);  /* Alice is now 31 */
+
+    /* Heap-allocated struct */
+    Person *bob = malloc(sizeof(Person));
+    if (!bob) return 1;
+    strncpy(bob-&gt;name, "Bob", sizeof(bob-&gt;name) - 1);
+    bob-&gt;age = 25;
+
+    printf("%s is %d\n", bob-&gt;name, bob-&gt;age);
+
+    free(bob);
+    return 0;
+}</code></pre>
+
+    <h2>Arrays of Structs</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+typedef struct { char name[30]; float score; } Student;
+
+int main(void) {
+    Student class[] = {
+        {"Alice", 92.5},
+        {"Bob",   78.0},
+        {"Carol", 88.5},
+    };
+    int n = sizeof(class) / sizeof(class[0]);
+
+    /* Find highest scorer */
+    int best = 0;
+    for (int i = 1; i &lt; n; i++) {
+        if (class[i].score &gt; class[best].score) best = i;
+    }
+    printf("Top student: %s (%.1f)\n", class[best].name, class[best].score);
+    return 0;
+}</code></pre>
+
+    <h2>Diff: Using . Instead of -> on a Pointer</h2>
+    <div class="diff-container">
+      <pre class="diff-bad"><code class="language-c">/* BROKEN: dot operator on a pointer */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+typedef struct { int x; int y; } Point;
+
+int main(void) {
+    Point *p = malloc(sizeof(Point));
+    p.x = 10;   /* ERROR: p is a pointer, not a struct */
+    p.y = 20;
+    printf("%d %d\n", p.x, p.y);
+    free(p);
+    return 0;
+}</code></pre>
+      <pre class="diff-good"><code class="language-c">/* FIXED: arrow operator for struct pointers */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+typedef struct { int x; int y; } Point;
+
+int main(void) {
+    Point *p = malloc(sizeof(Point));
+    if (!p) return 1;
+    p-&gt;x = 10;   /* FIXED: arrow for pointer access */
+    p-&gt;y = 20;
+    printf("%d %d\n", p-&gt;x, p-&gt;y);
+    free(p);
+    return 0;
+}</code></pre>
+      <div class="diff-explanation">
+        <strong>What was wrong:</strong> <code>p.x</code> uses the dot operator, which works when <code>p</code> is a <code>struct</code> variable. But <code>p</code> is a <code>Point *</code> (pointer), so the compiler produces: "error: request for member 'x' in something not a structure or union".<br><br>
+        <strong>Why the fix works:</strong> <code>p-&gt;x</code> is the arrow operator — it dereferences the pointer <em>and</em> accesses the field in one step. It's exactly equivalent to <code>(*p).x</code>, just more readable.
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>Copying structs accidentally</strong> — Passing a large struct by value copies all its bytes. For structs with string buffers, this can be expensive. Pass large structs by pointer when performance matters.</li>
+        <li><strong>struct padding and sizeof</strong> — <code>sizeof(struct)</code> can be larger than the sum of its fields due to alignment padding. Never assume the struct size.</li>
+        <li><strong>Self-referential typedef without the tag</strong> — A <span class="glossary-term" data-term="linked list">linked list</span> node needs <code>struct Node *next</code> inside the struct definition. The <code>typedef</code> name <code>Node</code> isn't available until the definition is complete, so you must use the struct tag inside.</li>
+      </ul>
+    </div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Rectangle area and perimeter</span>
+        </div>
+        <div class="exercise-body">
+          <p>Define a <code>struct Rectangle</code> with <code>double width</code> and <code>double height</code>. Write functions <code>double area(Rectangle r)</code> and <code>double perimeter(Rectangle r)</code>. Test with several rectangles.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">area = width * height; perimeter = 2 * (width + height). Pass the struct by value since it's small — two doubles.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Student grade tracker</span>
+        </div>
+        <div class="exercise-body">
+          <p>Create an array of 5 <code>struct Student</code> values with name and grade. Write functions to find the average grade, the highest scorer, and to sort the array by grade (descending).</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use qsort() with a comparator function, or implement bubble sort manually. The comparator for descending order: return (int)(b.score - a.score).</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Implement a date struct with comparison</span>
+        </div>
+        <div class="exercise-body">
+          <p>Define <code>struct Date { int year; int month; int day; }</code>. Write: (1) a function to check if a date is valid, (2) a comparison function (returns -1/0/1), (3) a function that returns the number of days between two dates. Test thoroughly.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">For days between dates: convert each date to a "Julian Day Number" (integer count from a reference date), then subtract. Look up the algorithm for Julian Day Number — it handles month lengths and leap years cleanly.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-str">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. How do you access a field of a struct through a pointer?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">s.field</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">s-&gt;field</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">s[field]</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">*s.field</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">p-&gt;field is the arrow operator for struct pointers. It's shorthand for (*p).field. Use the dot (.) when you have the struct itself, arrow (-&gt;) when you have a pointer to the struct.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. What does typedef do when used with a struct?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">Allocates memory for the struct</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">Creates an alias type name</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">Defines the struct fields</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">Makes the struct immutable</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">typedef creates a type alias. Without it, you must write "struct Point" everywhere. With typedef, you can write just "Point".</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. Structs are passed to functions by:</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">Reference by default</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">Value by default</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">Pointer only</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">The compiler decides</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">C passes structs by value — the whole struct is copied. For large structs or when you need to modify the original, explicitly pass a pointer.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Structures</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 2</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_str_1', correct: 1 },
+  { id: 'q_str_2', correct: 1 },
+  { id: 'q_str_3', correct: 1 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-str', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>

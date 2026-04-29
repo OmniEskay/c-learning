@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arrays & Strings — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 2 · Lesson 7</span>
+      <span class="meta-badge time">⏱ ~35 min read + practice</span>
+    </div>
+
+    <h1>Arrays &amp; Strings</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>The <span class="glossary-term" data-term="buffer overflow">buffer overflow</span> is one of the most exploited vulnerability classes in history — from the Morris Worm (1988) to Heartbleed (2014). Every buffer overflow is a C array boundary violation. Understanding exactly how arrays and strings lay out in memory is prerequisite knowledge for writing safe C and for understanding the CVEs that have compromised millions of servers.</p>
+    </div>
+
+    <h2>Arrays</h2>
+    <p>An array is a contiguous block of memory holding multiple values of the same type. Array indices start at 0.</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    /* Declaration and initialisation */
+    int scores[5] = {95, 87, 72, 91, 68};
+
+    /* Access by index */
+    printf("First: %d\n", scores[0]);   /* 95 */
+    printf("Last:  %d\n", scores[4]);   /* 68 */
+
+    /* Iterate */
+    int sum = 0;
+    for (int i = 0; i &lt; 5; i++) {
+        sum += scores[i];
+    }
+    printf("Average: %.1f\n", (double)sum / 5);
+
+    /* Partial initialisation — rest become 0 */
+    int zeroed[10] = {1, 2, 3};  /* {1,2,3,0,0,0,0,0,0,0} */
+
+    return 0;
+}</code></pre>
+
+    <h2>Memory Diagram: Array Layout</h2>
+    <div class="memory-diagram">int scores[5] = {95, 87, 72, 91, 68};
+
+Memory (each cell = 4 bytes on a typical platform):
+
+Address:  0x1000   0x1004   0x1008   0x100C   0x1010
+          ┌────────┬────────┬────────┬────────┬────────┐
+scores:   │   95   │   87   │   72   │   91   │   68   │
+          └────────┴────────┴────────┴────────┴────────┘
+Index:      [0]      [1]      [2]      [3]      [4]
+
+scores        → points to address 0x1000 (first element)
+scores[0]     → value at 0x1000 = 95
+scores[2]     → value at 0x1008 = 72
+&scores[2]    → 0x1008
+
+scores[5]     → address 0x1014 — ONE PAST THE END (do not read/write!)
+scores[-1]    → address 0x0FFC — BEFORE THE ARRAY (undefined behaviour!)</div>
+
+    <h2>2D Arrays</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    /* 3 rows, 4 columns */
+    int matrix[3][4] = {
+        {1,  2,  3,  4},
+        {5,  6,  7,  8},
+        {9, 10, 11, 12}
+    };
+
+    /* Print the matrix */
+    for (int row = 0; row &lt; 3; row++) {
+        for (int col = 0; col &lt; 4; col++) {
+            printf("%3d", matrix[row][col]);
+        }
+        printf("\n");
+    }
+
+    return 0;
+}</code></pre>
+    <p>2D arrays are stored in <em>row-major order</em> — all elements of row 0 come first in memory, then row 1, etc. <code>matrix[0][0]</code> is adjacent to <code>matrix[0][1]</code>, not <code>matrix[1][0]</code>.</p>
+
+    <h2>Strings in C</h2>
+    <p>C has no built-in string type. A string is just an array of <code>char</code> terminated by a <span class="glossary-term" data-term="null terminator">null terminator</span> (<code>'\0'</code>, ASCII 0). This convention is what lets functions like <code>printf</code> and <code>strlen</code> know where the string ends.</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void) {
+    /* String literal — stored in read-only memory */
+    char *greeting = "Hello";
+
+    /* String in a writable char array */
+    char name[20] = "Alice";
+
+    /* Manual string construction */
+    char msg[50];
+    msg[0] = 'H'; msg[1] = 'i'; msg[2] = '\0';  /* must null-terminate! */
+
+    printf("%s\n", greeting);
+    printf("Length: %zu\n", strlen(name));    /* 5 — not counting \0 */
+    printf("Size:   %zu\n", sizeof(name));    /* 20 — full array size */
+
+    return 0;
+}</code></pre>
+
+    <h2>Memory Diagram: String Layout</h2>
+    <div class="memory-diagram">char name[20] = "Alice";
+
+Address:  0x2000 0x2001 0x2002 0x2003 0x2004 0x2005 ... 0x2013
+          ┌──────┬──────┬──────┬──────┬──────┬──────┬─────┬──────┐
+name:     │  'A' │  'l' │  'i' │  'c' │  'e' │  \0  │ ... │  \0  │
+          └──────┴──────┴──────┴──────┴──────┴──────┴─────┴──────┘
+Index:     [0]    [1]    [2]    [3]    [4]    [5]         [19]
+
+strlen("Alice") = 5  (counts chars up to but NOT including \0)
+sizeof(name)    = 20 (total array size in bytes)
+
+Without the \0, printf and strlen would keep reading past the array
+into adjacent memory — reading garbage until they find a zero byte.</div>
+
+    <h2>String Functions from string.h</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void) {
+    char src[] = "Hello";
+    char dst[20];
+
+    /* Copy */
+    strcpy(dst, src);               /* unsafe if dst too small */
+    strncpy(dst, src, sizeof(dst)); /* safer: limits copy to n bytes */
+    dst[sizeof(dst)-1] = '\0';      /* ensure null termination after strncpy */
+
+    /* Concatenate */
+    char buf[20] = "Hello";
+    strncat(buf, ", World", sizeof(buf) - strlen(buf) - 1);
+    printf("%s\n", buf);  /* Hello, World */
+
+    /* Compare */
+    if (strcmp("apple", "banana") &lt; 0) {
+        printf("apple comes before banana\n");  /* strcmp returns &lt;0, 0, or &gt;0 */
+    }
+
+    /* Find substring */
+    char *pos = strstr("Hello, World", "World");
+    if (pos) printf("Found at index: %ld\n", pos - "Hello, World");
+
+    /* Length */
+    printf("Length: %zu\n", strlen("test"));  /* 4 */
+
+    return 0;
+}</code></pre>
+
+    <h2>Diff: strcpy Buffer Overflow</h2>
+    <div class="diff-container">
+      <pre class="diff-bad"><code class="language-c">/* BROKEN: destination buffer too small */
+#include &lt;string.h&gt;
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    char dst[5];
+    char src[] = "Hello, World!";
+
+    strcpy(dst, src);   /* writes 14 bytes into 5-byte buffer! */
+    printf("%s\n", dst);
+    return 0;
+}</code></pre>
+      <pre class="diff-good"><code class="language-c">/* FIXED: use snprintf with size limit */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void) {
+    char dst[5];
+    char src[] = "Hello, World!";
+
+    /* snprintf always null-terminates and never writes more than n bytes */
+    snprintf(dst, sizeof(dst), "%s", src);
+    printf("%s\n", dst);   /* "Hell" — safely truncated */
+    return 0;
+}</code></pre>
+      <div class="diff-explanation">
+        <strong>What was wrong:</strong> <code>strcpy</code> copies until the <span class="glossary-term" data-term="null terminator">null terminator</span> regardless of the destination size. Writing 14 bytes into a 5-byte buffer overwrites adjacent memory — potentially corrupting local variables, the return address, or other critical data. This is a classic <span class="glossary-term" data-term="buffer overflow">buffer overflow</span>.<br><br>
+        <strong>Why the fix works:</strong> <code>snprintf(dst, sizeof(dst), "%s", src)</code> writes at most <code>sizeof(dst) - 1</code> characters plus a null terminator. The output is truncated but the buffer is never overwritten.
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>Off-by-one in string buffers</strong> — A 20-char array holds a string of at most 19 characters (the 20th byte must be the null terminator). Always leave room for <code>'\0'</code>.</li>
+        <li><strong>Forgetting the null terminator</strong> — If you build a string manually by writing individual chars, you must explicitly set the last byte to <code>'\0'</code>, or string functions will read past the end.</li>
+        <li><strong>Comparing strings with <code>==</code></strong> — <code>str1 == str2</code> compares pointer addresses, not content. Use <code>strcmp(str1, str2) == 0</code> to compare string contents.</li>
+      </ul>
+    </div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Count vowels in a string</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a function <code>int count_vowels(const char *s)</code> that returns the number of vowels (a, e, i, o, u — case insensitive) in the string.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Loop through the string with a for loop until you hit '\0'. Use a switch or if/else on tolower(s[i]) to check for vowels. Include &lt;ctype.h&gt; for tolower().</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Reverse a string in-place</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a function <code>void reverse(char *s)</code> that reverses the string in place without using a second array.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use two pointer indices: one at the start (i=0), one at the end (j=strlen(s)-1). Swap s[i] and s[j], then advance i++ and j--. Stop when i >= j.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Implement your own strlen</span>
+        </div>
+        <div class="exercise-body">
+          <p>Implement <code>size_t my_strlen(const char *s)</code> without using any standard library string functions. It should return the number of characters before the null terminator.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use a pointer: start at s and advance until you find '\0', counting steps. Or use array indexing with a counter. The key: return the count when s[count] == '\0'.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-arr">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. How is a C string terminated?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">A '\0' null character</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">A newline '\n'</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">A space character</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">A semicolon</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">C strings are null-terminated: a \0 byte signals the end. strlen, printf, strcpy all rely on this convention to know where to stop.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. What is the index of the first element of an array in C?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">1</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">0</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">-1</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">Depends on the type</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">C arrays are zero-indexed. The last element of an n-element array is at index n-1.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. Which function copies one string into another?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">strdup</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">strmov</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">strcpy</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">strset</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">strcpy(dest, src) copies src into dest. For safety, prefer strncpy or snprintf with an explicit size limit.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Arrays &amp; Strings</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 2</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_arr_1', correct: 0 },
+  { id: 'q_arr_2', correct: 1 },
+  { id: 'q_arr_3', correct: 2 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-arr', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>

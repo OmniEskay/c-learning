@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pointers — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 2 · Lesson 8</span>
+      <span class="meta-badge time">⏱ ~40 min read + practice</span>
+    </div>
+
+    <h1>Pointers</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>Pointers are what gave C its power to write operating system kernels. The Linux kernel uses pointers to manage virtual memory, device drivers use pointers to access hardware registers at specific addresses, and every call to <code>malloc()</code> returns a pointer. Pointers also enable data structures like linked lists and trees. Avoiding pointers means staying in C's shallow end forever — mastering them opens the entire language.</p>
+    </div>
+
+    <h2>What is a Pointer?</h2>
+    <p>A <span class="glossary-term" data-term="pointer">pointer</span> is a variable that holds a memory address. Think of memory as a row of numbered boxes — a pointer is a note that says "the answer is in box #4021."</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    int x = 42;
+    int *p = &x;   /* p holds the address of x */
+                   /* * in declaration = "p is a pointer to int" */
+                   /* & = "address of" operator */
+
+    printf("Value of x:       %d\n",  x);    /* 42 */
+    printf("Address of x:     %p\n",  &x);   /* e.g. 0x7fff5abc1234 */
+    printf("Value of p:       %p\n",  p);    /* same address */
+    printf("Value pointed to: %d\n",  *p);   /* 42 — dereference */
+
+    *p = 100;        /* change x through the pointer */
+    printf("x is now: %d\n", x);   /* 100 */
+
+    return 0;
+}</code></pre>
+
+    <h2>Memory Diagram: Pointer Basics</h2>
+    <div class="memory-diagram">int x = 42;
+int *p = &x;
+
+Stack memory:
+                  Address    Value
+                ┌──────────┬──────────┐
+     x:         │ 0x7fff10 │    42    │  ← int, 4 bytes
+                ├──────────┼──────────┤
+     p:         │ 0x7fff18 │ 0x7fff10 │  ← pointer, 8 bytes (64-bit)
+                └──────────┴──────────┘
+                                │
+                                └──→ points to x at 0x7fff10
+
+*p    = value at 0x7fff10 = 42    (dereference)
+&x    = address of x      = 0x7fff10
+&p    = address of p      = 0x7fff18
+p     = value of p        = 0x7fff10 (the address it holds)</div>
+
+    <h2>Pointer Arithmetic</h2>
+    <p>When you add an integer to a pointer, C automatically scales by the size of the pointed-to type. This is how arrays work internally:</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    int arr[5] = {10, 20, 30, 40, 50};
+    int *p = arr;   /* p points to arr[0] — array name decays to pointer */
+
+    printf("%d\n", *p);       /* 10 — arr[0] */
+    printf("%d\n", *(p+1));   /* 20 — arr[1] */
+    printf("%d\n", *(p+2));   /* 30 — arr[2] */
+
+    p++;             /* advance pointer by 1 int (4 bytes) */
+    printf("%d\n", *p);   /* 20 */
+
+    /* These are equivalent */
+    printf("%d == %d\n", arr[3], *(arr + 3));  /* 40 == 40 */
+
+    return 0;
+}</code></pre>
+
+    <h2>Pointers and Functions: Pass by Reference</h2>
+    <p>By passing a pointer, you give a function the ability to modify the original variable:</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+void swap(int *a, int *b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+void increment(int *n) {
+    (*n)++;   /* parentheses needed: *n++ would increment the pointer! */
+}
+
+int main(void) {
+    int x = 5, y = 10;
+    printf("Before: x=%d y=%d\n", x, y);
+    swap(&x, &y);
+    printf("After:  x=%d y=%d\n", x, y);  /* x=10 y=5 */
+
+    increment(&x);
+    printf("x after increment: %d\n", x);  /* 11 */
+    return 0;
+}</code></pre>
+
+    <h2>Dynamic Memory with malloc and free</h2>
+    <p><span class="glossary-term" data-term="malloc">malloc()</span> allocates memory on the <span class="glossary-term" data-term="heap">heap</span>. Unlike stack variables, heap memory persists until you explicitly <span class="glossary-term" data-term="free">free()</span> it:</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(void) {
+    int n = 5;
+
+    /* Allocate array of n ints on the heap */
+    int *arr = malloc(n * sizeof(int));
+    if (arr == NULL) {   /* ALWAYS check for NULL — malloc can fail */
+        fprintf(stderr, "malloc failed\n");
+        return 1;
+    }
+
+    /* Use it like a regular array */
+    for (int i = 0; i &lt; n; i++) {
+        arr[i] = i * 10;
+    }
+
+    for (int i = 0; i &lt; n; i++) {
+        printf("%d ", arr[i]);  /* 0 10 20 30 40 */
+    }
+    printf("\n");
+
+    free(arr);   /* ALWAYS free when done — prevents memory leaks */
+    arr = NULL;  /* good habit: NULL the pointer after freeing */
+
+    return 0;
+}</code></pre>
+
+    <h2>Memory Diagram: Stack Pointer → Heap Data</h2>
+    <div class="memory-diagram">int *arr = malloc(5 * sizeof(int));  /* 20 bytes allocated */
+
+STACK:                              HEAP:
+┌──────────────────────────┐        ┌──────┬──────┬──────┬──────┬──────┐
+│ arr │  0x00600010        │───────▶│  0   │  10  │  20  │  30  │  40  │
+└──────────────────────────┘        └──────┴──────┴──────┴──────┴──────┘
+  (pointer lives on stack)          0x600010           0x600024
+  (8 bytes, holds heap address)     (20 bytes of heap memory)
+
+After free(arr):
+  - The 20 heap bytes are returned to the allocator
+  - arr still holds the old address (0x600010) — it's now a DANGLING POINTER
+  - Setting arr = NULL prevents accidental use-after-free</div>
+
+    <h2>Null Pointer</h2>
+    <p>A <span class="glossary-term" data-term="null pointer">null pointer</span> is a pointer with value <code>NULL</code> (typically 0). It points to nothing. Dereferencing it causes a <span class="glossary-term" data-term="segfault">segfault</span>:</p>
+    <pre><code class="language-c">int *p = NULL;
+*p = 5;    /* SEGFAULT — cannot dereference NULL */
+
+/* Always check before dereferencing */
+if (p != NULL) {
+    *p = 5;
+}</code></pre>
+
+    <h2>Diff: Forgetting to free() — Memory Leak</h2>
+    <div class="diff-container">
+      <pre class="diff-bad"><code class="language-c">/* BROKEN: memory leak */
+#include &lt;stdlib.h&gt;
+
+void process(int n) {
+    int *data = malloc(n * sizeof(int));
+    if (!data) return;
+
+    /* ... use data ... */
+
+    /* BUG: forgot to free! */
+}   /* data goes out of scope but heap memory is NOT freed */
+
+int main(void) {
+    for (int i = 0; i &lt; 1000; i++) {
+        process(1000);   /* leaks 4000 bytes each call */
+    }   /* total leak: ~4 MB */
+    return 0;
+}</code></pre>
+      <pre class="diff-good"><code class="language-c">/* FIXED: always free allocated memory */
+#include &lt;stdlib.h&gt;
+
+void process(int n) {
+    int *data = malloc(n * sizeof(int));
+    if (!data) return;
+
+    /* ... use data ... */
+
+    free(data);   /* FIXED: release heap memory before return */
+}
+
+int main(void) {
+    for (int i = 0; i &lt; 1000; i++) {
+        process(1000);   /* no leak */
+    }
+    return 0;
+}</code></pre>
+      <div class="diff-explanation">
+        <strong>What was wrong:</strong> Every call to <code>malloc()</code> that isn't matched by a <code>free()</code> is a <span class="glossary-term" data-term="memory leak">memory leak</span>. The heap memory is never returned to the OS while the process runs. In a loop, this accumulates rapidly. Long-running servers with memory leaks eventually crash or are killed by the OOM killer.<br><br>
+        <strong>Why the fix works:</strong> <code>free(data)</code> returns the heap block to the allocator. Every code path in the function that allocates memory must have a corresponding <code>free()</code> on every exit path (including early returns on error).
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>Dereferencing an uninitialised pointer</strong> — <code>int *p; *p = 5;</code> is undefined behaviour. <code>p</code> contains garbage — an arbitrary address. Always initialise pointers.</li>
+        <li><strong>Use after free</strong> — Reading or writing through a pointer after calling <code>free()</code> is undefined behaviour. Set pointers to NULL after freeing them.</li>
+        <li><strong>Double free</strong> — Calling <code>free()</code> twice on the same pointer corrupts the heap allocator's metadata. This is a common security vulnerability.</li>
+      </ul>
+    </div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Swap without a temp variable</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a function <code>void swap_xor(int *a, int *b)</code> that swaps two integers using XOR without a temporary variable. Verify it works with various inputs including negative numbers.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">XOR swap: *a ^= *b; *b ^= *a; *a ^= *b; — but be careful: if a and b point to the same location, this will zero it out! The standard temp-variable swap is safer in practice.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Dynamic array with resize</span>
+        </div>
+        <div class="exercise-body">
+          <p>Use <code>malloc</code> and <code>realloc</code> to build a dynamically-growing integer array. Start with capacity 4 and double it each time the array is full. Push 20 numbers and then print them all. Free at the end.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Track both size (current count) and capacity. When size == capacity, call realloc(ptr, new_capacity * sizeof(int)) and check the return value for NULL before updating the pointer.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Implement qsort comparator for structs</span>
+        </div>
+        <div class="exercise-body">
+          <p>Create an array of <code>struct Person { char name[30]; int age; }</code>. Use the standard library <code>qsort()</code> function with a custom comparator to sort by age (ascending), then by name (alphabetical). Print the sorted results.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">qsort comparator signature: int cmp(const void *a, const void *b). Cast: const struct Person *pa = a; Then compare pa->age vs pb->age. For name sort: use strcmp(pa->name, pb->name).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-ptr">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. What does the &amp; operator do when applied to a variable?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">Dereferences a pointer</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">Returns the address of the variable</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">Declares a pointer</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">Performs bitwise AND</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">&amp; is the address-of operator. &amp;x gives the memory address where x is stored. (& in a declaration means reference in C++ but not in C.)</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. What does <code>*ptr</code> do when ptr is a pointer?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">Declares ptr as a pointer</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">Multiplies ptr by itself</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">Dereferences ptr — reads the value at its address</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">Frees the memory at ptr</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">The * dereference operator reads (or writes) the value stored at the address held by ptr. * in a declaration means "pointer to"; * in an expression means "value at".</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. Which function allocates memory on the heap?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">alloc</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">new</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">malloc</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">halloc</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">malloc(n) allocates n bytes on the heap and returns a void* pointer to the memory. new is a C++ keyword. alloc and halloc don't exist in standard C.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Pointers</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 2</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_ptr_1', correct: 1 },
+  { id: 'q_ptr_2', correct: 2 },
+  { id: 'q_ptr_3', correct: 2 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-ptr', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>
