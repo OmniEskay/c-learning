@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>C Glossary — C Learn</title>
+  <link rel="stylesheet" href="../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <h1>C Programming Glossary</h1>
+    <p class="text-dim" style="font-family:var(--font-mono);font-size:0.8rem;">Every term used across this course, with definitions and code examples.</p>
+
+    <!-- Alphabetical quick-jump -->
+    <div class="glossary-index" id="glossary-index"></div>
+
+    <div id="glossary-entries">
+
+      <div class="glossary-entry" id="array">
+        <div class="term-name">array</div>
+        <div class="term-def">A contiguous block of memory holding a fixed number of elements of the same type. Accessed by zero-based index. The array name decays to a pointer to the first element in most contexts.</div>
+        <pre><code class="language-c">int scores[5] = {10, 20, 30, 40, 50};
+printf("%d\n", scores[2]);  /* 30 */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase2/arrays-strings.html">Arrays &amp; Strings</a></div>
+      </div>
+
+      <div class="glossary-entry" id="buffer-overflow">
+        <div class="term-name">buffer overflow</div>
+        <div class="term-def">Writing data beyond the end of an allocated buffer, corrupting adjacent memory. One of the most common and dangerous security vulnerabilities in C programs.</div>
+        <pre><code class="language-c">char buf[5];
+strcpy(buf, "Hello, World!");  /* writes 14 bytes into 5-byte buffer! */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase2/arrays-strings.html">Arrays &amp; Strings</a></div>
+      </div>
+
+      <div class="glossary-entry" id="calloc">
+        <div class="term-name">calloc</div>
+        <div class="term-def">Allocates memory for an array of n elements of the given size, zero-initialising all bytes. Returns NULL on failure. Part of &lt;stdlib.h&gt;.</div>
+        <pre><code class="language-c">int *arr = calloc(10, sizeof(int));  /* 40 bytes, all zeros */
+if (!arr) { perror("calloc"); exit(1); }
+free(arr);</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase3/memory-management.html">Memory Management</a></div>
+      </div>
+
+      <div class="glossary-entry" id="compiler">
+        <div class="term-name">compiler</div>
+        <div class="term-def">A program that translates C source code into machine code. GCC and Clang are the most common C compilers. The compilation process involves preprocessing, compilation, assembly, and linking.</div>
+        <pre><code class="language-bash">gcc -Wall -o program main.c  # compile main.c into an executable</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase1/setup.html">Setup &amp; Toolchain</a></div>
+      </div>
+
+      <div class="glossary-entry" id="dereference">
+        <div class="term-name">dereference</div>
+        <div class="term-def">Following a pointer to read or write the value at the address it holds. Done with the unary * operator. Dereferencing a NULL or invalid pointer causes a segfault.</div>
+        <pre><code class="language-c">int x = 42;
+int *p = &x;
+printf("%d\n", *p);  /* dereference: prints 42 */
+*p = 100;            /* write through pointer */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase2/pointers.html">Pointers</a></div>
+      </div>
+
+      <div class="glossary-entry" id="eof">
+        <div class="term-name">EOF</div>
+        <div class="term-def">End Of File. The value returned by fgetc() and similar functions when the file ends or an error occurs. Defined as -1 in &lt;stdio.h&gt;. Must be stored in an int, not a char, to distinguish from valid byte values.</div>
+        <pre><code class="language-c">int ch;
+while ((ch = fgetc(fp)) != EOF) {
+    putchar(ch);
+}</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase2/file-io.html">File I/O</a></div>
+      </div>
+
+      <div class="glossary-entry" id="errno">
+        <div class="term-name">errno</div>
+        <div class="term-def">A global integer variable set by the C library when a system call or library function fails. Defined in &lt;errno.h&gt;. Only meaningful immediately after a failure. Thread-local in POSIX environments.</div>
+        <pre><code class="language-c">#include &lt;errno.h&gt;
+#include &lt;string.h&gt;
+FILE *fp = fopen("missing.txt", "r");
+if (!fp) printf("Error: %s\n", strerror(errno));</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase3/error-handling.html">Error Handling</a></div>
+      </div>
+
+      <div class="glossary-entry" id="free">
+        <div class="term-name">free</div>
+        <div class="term-def">Releases heap memory previously allocated with malloc, calloc, or realloc. Calling free(NULL) is safe (does nothing). Double-free is a security vulnerability. After freeing, set the pointer to NULL.</div>
+        <pre><code class="language-c">int *p = malloc(sizeof(int));
+*p = 42;
+free(p);
+p = NULL;  /* prevent use-after-free */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase2/pointers.html">Pointers</a></div>
+      </div>
+
+      <div class="glossary-entry" id="header-file">
+        <div class="term-name">header file</div>
+        <div class="term-def">A .h file containing declarations (function prototypes, struct definitions, macros, typedefs) shared across multiple .c files. Included with #include. Does not contain function bodies (those go in .c files).</div>
+        <pre><code class="language-c">#include &lt;stdio.h&gt;   /* standard library header */
+#include "mymodule.h" /* your own header */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase1/hello-world.html">Hello, World!</a></div>
+      </div>
+
+      <div class="glossary-entry" id="heap">
+        <div class="term-name">heap</div>
+        <div class="term-def">A region of virtual memory used for dynamic allocation. Memory is allocated explicitly with malloc/calloc and released with free. Unlike the stack, heap memory persists across function calls until freed. Subject to fragmentation.</div>
+        <pre><code class="language-c">int *data = malloc(100 * sizeof(int));  /* allocate on heap */
+/* ... use data ... */
+free(data);  /* return to heap */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase3/memory-management.html">Memory Management</a></div>
+      </div>
+
+      <div class="glossary-entry" id="linker">
+        <div class="term-name">linker</div>
+        <div class="term-def">The tool that combines compiled object files (.o) and library archives (.a) into a final executable. Resolves symbol references between files. A "linker error" (undefined reference) means a function is declared but its definition isn't provided.</div>
+        <pre><code class="language-bash">gcc main.o utils.o -o program  # linker combines two object files</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase1/setup.html">Setup &amp; Toolchain</a></div>
+      </div>
+
+      <div class="glossary-entry" id="linked-list">
+        <div class="term-name">linked list</div>
+        <div class="term-def">A data structure where each node holds a value and a pointer to the next node. Unlike arrays, nodes need not be contiguous. Supports O(1) head insertion/deletion but O(n) search.</div>
+        <pre><code class="language-c">typedef struct Node {
+    int value;
+    struct Node *next;
+} Node;</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase3/dynamic-data-structures.html">Dynamic Data Structures</a></div>
+      </div>
+
+      <div class="glossary-entry" id="malloc">
+        <div class="term-name">malloc</div>
+        <div class="term-def">Allocates n bytes of uninitialised heap memory. Returns a void* pointer that should be cast to the target type. Returns NULL if allocation fails. Must be paired with free() to avoid memory leaks.</div>
+        <pre><code class="language-c">int *arr = malloc(10 * sizeof(int));
+if (!arr) { perror("malloc"); exit(1); }
+/* ... use arr ... */
+free(arr);</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase2/pointers.html">Pointers</a></div>
+      </div>
+
+      <div class="glossary-entry" id="memory-leak">
+        <div class="term-name">memory leak</div>
+        <div class="term-def">Heap memory that was allocated but never freed. The memory is inaccessible to the program (the pointer was lost) but still reserved from the OS. Accumulates until the process is killed. Detected by Valgrind.</div>
+        <pre><code class="language-c">void leak(void) {
+    int *p = malloc(100);
+    /* forgot free(p) — 100 bytes leaked each call */
+}</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase3/memory-management.html">Memory Management</a></div>
+      </div>
+
+      <div class="glossary-entry" id="null-pointer">
+        <div class="term-name">null pointer</div>
+        <div class="term-def">A pointer with value NULL (0). Does not point to any valid memory. Dereferencing a null pointer causes an immediate segfault. Used as a sentinel value to indicate "no pointer" or failure.</div>
+        <pre><code class="language-c">int *p = NULL;
+if (p != NULL) *p = 5;  /* safe — checks before dereferencing */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase2/pointers.html">Pointers</a></div>
+      </div>
+
+      <div class="glossary-entry" id="null-terminator">
+        <div class="term-name">null terminator</div>
+        <div class="term-def">The '\0' byte (ASCII 0) that marks the end of a C string. Every C string must end with a null terminator. String functions like strlen, printf, and strcpy rely on it to know where the string ends.</div>
+        <pre><code class="language-c">char s[6] = "Hello";
+/* s = {'H','e','l','l','o','\0'} */
+printf("len=%zu\n", strlen(s));  /* 5 */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase2/arrays-strings.html">Arrays &amp; Strings</a></div>
+      </div>
+
+      <div class="glossary-entry" id="pointer">
+        <div class="term-name">pointer</div>
+        <div class="term-def">A variable that stores a memory address. Declared with * in the type (int *p). The & operator gives the address of a variable. The * operator dereferences a pointer to access the value at its address.</div>
+        <pre><code class="language-c">int x = 42;
+int *p = &x;   /* p holds address of x */
+printf("%d\n", *p);  /* 42 — value at the address */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase2/pointers.html">Pointers</a></div>
+      </div>
+
+      <div class="glossary-entry" id="preprocessor">
+        <div class="term-name">preprocessor</div>
+        <div class="term-def">The first phase of compilation. Processes directives starting with #: #include inserts file contents, #define creates macros, #ifdef/#ifndef enables conditional compilation. Runs before the C compiler sees your code.</div>
+        <pre><code class="language-c">#include &lt;stdio.h&gt;   /* preprocessor replaces this with stdio.h contents */
+#define MAX 100      /* preprocessor replaces MAX with 100 everywhere */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase1/setup.html">Setup &amp; Toolchain</a></div>
+      </div>
+
+      <div class="glossary-entry" id="prototype">
+        <div class="term-name">prototype</div>
+        <div class="term-def">A forward declaration of a function's signature (return type and parameter types) without its body. Allows calling a function before its definition appears in the file. Usually placed in header files.</div>
+        <pre><code class="language-c">int square(int x);  /* prototype */
+int main(void) { return square(5); }
+int square(int x) { return x * x; }  /* definition */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase1/functions.html">Functions</a></div>
+      </div>
+
+      <div class="glossary-entry" id="realloc">
+        <div class="term-name">realloc</div>
+        <div class="term-def">Resizes a previously allocated heap block. May move the data to a new address. Returns NULL on failure (original block is unchanged). Never assign realloc's result directly to the original pointer — use a temp variable.</div>
+        <pre><code class="language-c">int *arr = malloc(5 * sizeof(int));
+int *tmp = realloc(arr, 10 * sizeof(int));  /* grow to 10 ints */
+if (!tmp) { free(arr); exit(1); }
+arr = tmp;  /* safe — tmp is valid */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase3/memory-management.html">Memory Management</a></div>
+      </div>
+
+      <div class="glossary-entry" id="recursion">
+        <div class="term-name">recursion</div>
+        <div class="term-def">A function that calls itself. Requires a base case to terminate. Each call pushes a new stack frame. Deep recursion can overflow the stack. Used in tree traversal, divide-and-conquer algorithms, and parsing.</div>
+        <pre><code class="language-c">int factorial(int n) {
+    if (n &lt;= 1) return 1;           /* base case */
+    return n * factorial(n - 1);    /* recursive case */
+}</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase3/recursion.html">Recursion</a></div>
+      </div>
+
+      <div class="glossary-entry" id="scope">
+        <div class="term-name">scope</div>
+        <div class="term-def">The region of source code where a name (variable, function) is visible. Local variables have block scope (visible within their {} block). Global variables have file scope. Parameters have function scope.</div>
+        <pre><code class="language-c">int global = 1;        /* file scope */
+void f(void) {
+    int local = 2;     /* block scope — invisible outside f */
+    {
+        int inner = 3; /* block scope — invisible outside {} */
+    }
+}</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase1/functions.html">Functions</a></div>
+      </div>
+
+      <div class="glossary-entry" id="segfault">
+        <div class="term-name">segfault (segmentation fault)</div>
+        <div class="term-def">SIGSEGV — a crash caused by accessing memory the process does not own. Caused by: NULL dereference, out-of-bounds array access, use-after-free, stack overflow. Debug with GDB's backtrace command.</div>
+        <pre><code class="language-c">int *p = NULL;
+*p = 5;  /* SIGSEGV — kills the process immediately */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase3/memory-management.html">Memory Management</a></div>
+      </div>
+
+      <div class="glossary-entry" id="stack">
+        <div class="term-name">stack</div>
+        <div class="term-def">A region of virtual memory for local variables and function call frames. Grows downward. Automatically managed — pushed on function entry, popped on return. Typically limited to ~8 MB. Deep recursion exhausts the stack.</div>
+        <pre><code class="language-c">void f(void) {
+    int local = 42;  /* allocated on the stack */
+}  /* local destroyed here — stack frame popped */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase3/memory-management.html">Memory Management</a></div>
+      </div>
+
+      <div class="glossary-entry" id="struct">
+        <div class="term-name">struct</div>
+        <div class="term-def">A user-defined type that groups related variables (fields) under one name. Fields are accessed with the . operator (struct variable) or -> operator (struct pointer). Passed by value by default — pass a pointer for efficiency.</div>
+        <pre><code class="language-c">typedef struct { char name[50]; int age; double gpa; } Student;
+Student s = {"Alice", 20, 3.8};
+printf("%s\n", s.name);</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase2/structures.html">Structures</a></div>
+      </div>
+
+      <div class="glossary-entry" id="typedef">
+        <div class="term-name">typedef</div>
+        <div class="term-def">Creates a type alias. Commonly used with structs to avoid writing "struct" everywhere. Also used for function pointer types and platform-independent integer types.</div>
+        <pre><code class="language-c">typedef struct { double x; double y; } Point;
+Point p = {1.0, 2.0};  /* no "struct" keyword needed */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase2/structures.html">Structures</a></div>
+      </div>
+
+      <div class="glossary-entry" id="undefined-behaviour">
+        <div class="term-name">undefined behaviour</div>
+        <div class="term-def">Code that the C standard does not define — the compiler may do anything. Including: crash, produce wrong results, or appear to work correctly. Common causes: signed integer overflow, null dereference, out-of-bounds access, use-after-free. The most dangerous category of C bugs.</div>
+        <pre><code class="language-c">int arr[3] = {1, 2, 3};
+int x = arr[10];  /* undefined behaviour — reads past array end */
+int n = INT_MAX + 1;  /* undefined behaviour — signed overflow */</code></pre>
+        <div class="term-lesson">→ Taught in: <a href="../pages/phase1/syntax.html">Syntax &amp; Data Types</a></div>
+      </div>
+
+    </div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Reference</div>
+      <div class="panel-value">Glossary</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Terms</div>
+      <div class="panel-value" id="term-count">—</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../scripts/main.js"></script>
+<script src="../scripts/spaced-repetition.js"></script>
+<script src="../scripts/streaks.js"></script>
+<script src="../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+document.addEventListener('DOMContentLoaded', () => {
+  const entries = document.querySelectorAll('.glossary-entry');
+  const indexEl = document.getElementById('glossary-index');
+  const countEl = document.getElementById('term-count');
+
+  /* Build alpha index */
+  const seen = new Set();
+  entries.forEach(entry => {
+    const termEl = entry.querySelector('.term-name');
+    if (!termEl) return;
+    const letter = termEl.textContent.trim()[0].toUpperCase();
+    if (!seen.has(letter)) {
+      seen.add(letter);
+      const a = document.createElement('a');
+      a.href = '#' + entry.id;
+      a.textContent = letter;
+      indexEl.appendChild(a);
+    }
+  });
+
+  if (countEl) countEl.textContent = entries.length;
+});
+</script>
+</body>
+</html>

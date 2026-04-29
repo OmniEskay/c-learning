@@ -1,0 +1,36 @@
+{
+  "_comment": "Schema reference only. Actual data is stored in localStorage.",
+  "c_progress": {
+    "_description": "Map of lesson ID to completion record",
+    "lesson-id": {
+      "completedAt": 1700000000000
+    }
+  },
+  "sr_data": {
+    "_description": "Spaced repetition data per question ID",
+    "q_intro_1": {
+      "interval": 1,
+      "nextReview": 1700000000000,
+      "easiness": 2.5,
+      "streak": 0
+    }
+  },
+  "c_streak": {
+    "_description": "Current streak count (integer)"
+  },
+  "c_activity": {
+    "_description": "Array of ISO date strings (YYYY-MM-DD) when user was active",
+    "_example": ["2024-01-01", "2024-01-02", "2024-01-03"]
+  },
+  "c_badges": {
+    "_description": "Array of earned badge IDs",
+    "_example": ["first-steps", "phase1", "on-fire"]
+  },
+  "_localStorage_keys": [
+    "c_progress",
+    "sr_data",
+    "c_streak",
+    "c_activity",
+    "c_badges"
+  ]
+}

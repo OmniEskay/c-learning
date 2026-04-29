@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GCC Error Decoder — C Learn</title>
+  <link rel="stylesheet" href="../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <h1>GCC / Clang Error Decoder</h1>
+    <p class="text-dim" style="font-family:var(--font-mono);font-size:0.82rem;">
+      Paste a compiler error or warning message below and click <strong>Decode</strong>.
+    </p>
+    <p style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-muted);">
+      Don't see your error? Paste it anyway — the pattern matcher will find partial matches.
+    </p>
+
+    <textarea class="decoder-input" id="error-input"
+      placeholder="Paste your GCC/Clang error or warning here...
+Example:
+warning: implicit declaration of function 'printf' [-Wimplicit-function-declaration]
+"></textarea>
+    <button id="decode-btn">Decode Error</button>
+
+    <div id="decoder-result"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Tool</div>
+      <div class="panel-value">Error Decoder</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Errors Covered</div>
+      <div class="panel-value">11+</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Quick Reference</div>
+      <div style="font-size:0.7rem;color:var(--text-dim);line-height:1.8;">
+        implicit declaration<br>
+        expected ';'<br>
+        undeclared identifier<br>
+        segmentation fault<br>
+        undefined reference<br>
+        incompatible pointer<br>
+        format expects int<br>
+        use of undeclared id<br>
+        missing return<br>
+        assignment makes pointer<br>
+        use-after-free
+      </div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../scripts/main.js"></script>
+<script src="../scripts/spaced-repetition.js"></script>
+<script src="../scripts/streaks.js"></script>
+<script src="../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+/* ─── Error Database ─── */
+const ERROR_DB = [
+  {
+    id: 'implicit-declaration',
+    pattern: /implicit declaration of function/i,
+    title: 'implicit declaration of function \'X\'',
+    meaning: 'You are calling a function that the compiler has not seen a declaration or prototype for.',
+    cause: 'You forgot to #include the header file that declares this function, or you are calling a function defined later in the file without a prototype.',
+    fix: '1. Add the correct #include at the top of your file.\n2. Or add a function prototype before the call.\n\nCommon headers: printf/scanf → <stdio.h>, malloc/free → <stdlib.h>, strlen/strcpy → <string.h>, sqrt/pow → <math.h>',
+    bad_code: `/* BROKEN: missing #include */
+int main(void) {
+    printf("Hello\\n");  /* error: implicit declaration */
+    return 0;
+}`,
+    good_code: `/* FIXED: include the right header */
+#include <stdio.h>
+int main(void) {
+    printf("Hello\\n");  /* OK */
+    return 0;
+}`
+  },
+  {
+    id: 'expected-semicolon',
+    pattern: /expected ';'|error: expected|parse error before/i,
+    title: "expected ';' before token",
+    meaning: 'The compiler expected a semicolon to end a statement, but found something else.',
+    cause: 'A missing semicolon — usually on the line BEFORE the one the error reports. The compiler only discovers the missing semicolon when it hits unexpected syntax on the next line.',
+    fix: 'Look at the line ABOVE the one mentioned in the error. Add a semicolon at the end of that statement.',
+    bad_code: `int x = 5   /* missing semicolon! */
+int y = 10; /* error reported HERE */`,
+    good_code: `int x = 5;  /* semicolon added */
+int y = 10;`
+  },
+  {
+    id: 'undeclared-identifier',
+    pattern: /undeclared|'[^']+' undeclared|use of undeclared identifier/i,
+    title: "'x' undeclared (first use in this function)",
+    meaning: "You are using a variable or function name that the compiler has not seen a declaration for in the current scope.",
+    cause: 'Common reasons: (1) Typo in the name, (2) Variable declared in a different scope, (3) Variable not declared at all, (4) Missing #include for a library function.',
+    fix: '1. Check for typos — C is case-sensitive (myVar ≠ myvar).\n2. Make sure the variable is declared before it is used.\n3. Check that you are in the correct scope (inside the right function/block).',
+    bad_code: `int main(void) {
+    x = 10;  /* error: x undeclared */
+    return 0;
+}`,
+    good_code: `int main(void) {
+    int x = 10;  /* declare first */
+    return 0;
+}`
+  },
+  {
+    id: 'segfault',
+    pattern: /segmentation fault|sigsegv|signal 11|segfault/i,
+    title: 'Segmentation Fault (SIGSEGV)',
+    meaning: 'Your program tried to access memory it does not own. The OS killed it immediately.',
+    cause: 'Most common causes: (1) Dereferencing a NULL pointer, (2) Accessing an array out of bounds, (3) Using memory after free() (use-after-free), (4) Stack overflow from infinite recursion, (5) Writing to a string literal.',
+    fix: '1. Run under GDB: gcc -g -o prog main.c && gdb ./prog → run → bt\n2. Use AddressSanitizer: gcc -g -fsanitize=address -o prog main.c\n3. Check all pointer uses — make sure they are not NULL before dereferencing.\n4. Check all array accesses — indices must be 0 to size-1.',
+    bad_code: `int *p = NULL;
+*p = 42;  /* SIGSEGV — null dereference */
+
+int arr[3] = {1,2,3};
+int x = arr[5];  /* SIGSEGV or silent corruption */`,
+    good_code: `int *p = malloc(sizeof(int));
+if (p == NULL) { exit(1); }  /* check before use */
+*p = 42;
+free(p);
+
+int arr[3] = {1,2,3};
+int x = arr[2];  /* valid: index 0,1,2 only */`
+  },
+  {
+    id: 'undefined-reference',
+    pattern: /undefined reference to|unresolved external symbol/i,
+    title: "undefined reference to 'function_name'",
+    meaning: 'The linker cannot find the definition (body) of a function you called. The compiler saw a declaration but the linker could not find the actual code.',
+    cause: '(1) You forgot to compile and link the .c file that contains the function definition. (2) You are using a math function but forgot -lm. (3) Function is declared but not defined.',
+    fix: '1. Add all .c files to your compile command: gcc main.c utils.c -o prog\n2. For math.h functions, add -lm: gcc main.c -o prog -lm\n3. Make sure the function has both a declaration AND a definition.',
+    bad_code: `/* compile command: gcc main.c -o prog */
+/* main.c calls helper() from utils.c but utils.c not compiled */
+extern int helper(void);
+int main(void) { return helper(); }`,
+    good_code: `/* FIXED: compile command: gcc main.c utils.c -o prog */
+extern int helper(void);
+int main(void) { return helper(); }`
+  },
+  {
+    id: 'non-void-function',
+    pattern: /control reaches end of non-void|missing return/i,
+    title: 'control reaches end of non-void function',
+    meaning: 'A function declared to return a value (non-void return type) can reach its end without executing a return statement.',
+    cause: 'Missing return statement, or a return statement only inside an if block with no else.',
+    fix: 'Add a return statement at the end of the function. Make sure every code path returns a value.',
+    bad_code: `int sign(int n) {
+    if (n > 0) return 1;
+    if (n < 0) return -1;
+    /* BUG: what if n == 0? reaches end without return */
+}`,
+    good_code: `int sign(int n) {
+    if (n > 0) return 1;
+    if (n < 0) return -1;
+    return 0;  /* FIXED: handles n == 0 */
+}`
+  },
+  {
+    id: 'incompatible-pointer',
+    pattern: /incompatible pointer type|passing argument.*incompatible pointer/i,
+    title: 'warning: passing argument from incompatible pointer type',
+    meaning: 'You are passing a pointer of one type where a pointer of a different type is expected.',
+    cause: 'Type mismatch: passing int* where double* is expected, or similar. May also occur when passing char* to a function expecting unsigned char*.',
+    fix: 'Check the function prototype and match the pointer types exactly. Add an explicit cast if you truly need to reinterpret the data.',
+    bad_code: `void print_double(double *d) { printf("%f\\n", *d); }
+
+int main(void) {
+    int x = 42;
+    print_double(&x);  /* warning: int* passed where double* expected */
+    return 0;
+}`,
+    good_code: `void print_double(double *d) { printf("%f\\n", *d); }
+
+int main(void) {
+    double x = 42.0;  /* FIXED: use correct type */
+    print_double(&x);
+    return 0;
+}`
+  },
+  {
+    id: 'format-specifier',
+    pattern: /format '%[^']+' expects argument of type|format specifier/i,
+    title: "format '%d' expects argument of type 'int'",
+    meaning: "The format specifier in printf/scanf does not match the type of the corresponding argument.",
+    cause: "Using %d for a float/double, %f for an int, %s for a non-pointer, etc.",
+    fix: 'Match format specifiers to types:\n• int → %d\n• float → %f\n• double → %f (printf) or %lf (scanf)\n• long → %ld\n• char* → %s\n• size_t → %zu\n• pointer → %p',
+    bad_code: `float temperature = 98.6;
+printf("Temp: %d\\n", temperature);  /* BUG: %d for float */
+
+double pi = 3.14159;
+scanf("%d", &pi);  /* BUG: %d for double in scanf */`,
+    good_code: `float temperature = 98.6;
+printf("Temp: %f\\n", temperature);  /* FIXED: %f for float */
+
+double pi = 3.14159;
+scanf("%lf", &pi);  /* FIXED: %lf for double in scanf */`
+  },
+  {
+    id: 'assignment-pointer-from-integer',
+    pattern: /assignment makes pointer from integer without a cast|incompatible integer to pointer/i,
+    title: 'warning: assignment makes pointer from integer without a cast',
+    meaning: "You are assigning an integer value to a pointer variable (or vice versa) without an explicit cast.",
+    cause: 'Common causes: (1) Forgetting & when calling scanf, (2) Assigning 0 instead of NULL to a pointer, (3) Comparing pointer to integer without cast.',
+    fix: '1. If assigning to pointer: use malloc() or & to get an actual address.\n2. If setting null pointer: use NULL not 0.\n3. If you have a raw address: use an explicit cast (void*)(uintptr_t)addr.',
+    bad_code: `int *p;
+p = 42;   /* BUG: assigning int to pointer */
+
+int n;
+scanf("%d", n);  /* BUG: n is int, should be &n (pointer) */`,
+    good_code: `int *p = malloc(sizeof(int));  /* FIXED: pointer to allocated memory */
+*p = 42;
+
+int n;
+scanf("%d", &n);  /* FIXED: &n is a pointer to n */`
+  },
+  {
+    id: 'use-after-free',
+    pattern: /use.after.free|heap.use.after.free|invalid read.*freed/i,
+    title: 'heap-use-after-free (AddressSanitizer)',
+    meaning: 'You read or wrote memory after it was freed with free(). The memory may have been reallocated for a different purpose, causing data corruption or a crash.',
+    cause: 'Calling free(ptr) and then later accessing *ptr, ptr[i], or passing ptr to a function.',
+    fix: '1. Set pointers to NULL immediately after freeing: free(p); p = NULL;\n2. Never use a pointer after calling free() on it.\n3. Use AddressSanitizer to detect: gcc -fsanitize=address',
+    bad_code: `int *p = malloc(sizeof(int));
+*p = 42;
+free(p);
+printf("%d\\n", *p);  /* BUG: use-after-free */`,
+    good_code: `int *p = malloc(sizeof(int));
+*p = 42;
+printf("%d\\n", *p);  /* read BEFORE freeing */
+free(p);
+p = NULL;  /* FIXED: prevent accidental use */`
+  },
+  {
+    id: 'missing-return-statement',
+    pattern: /missing return|function does not return a value/i,
+    title: 'missing return statement',
+    meaning: 'A non-void function does not have a return statement on some code path.',
+    cause: 'A return statement exists only inside a conditional, or is missing entirely.',
+    fix: 'Add a return statement that covers all code paths. Every branch of if/else in a non-void function should return a value.',
+    bad_code: `int max(int a, int b) {
+    if (a > b) return a;
+    /* MISSING: no return when a <= b */
+}`,
+    good_code: `int max(int a, int b) {
+    if (a > b) return a;
+    return b;  /* FIXED: covers a <= b case */
+}`
+  },
+];
+
+/* ─── Decoder Logic ─── */
+document.getElementById('decode-btn').addEventListener('click', () => {
+  const input = document.getElementById('error-input').value.trim();
+  const resultEl = document.getElementById('decoder-result');
+  resultEl.innerHTML = '';
+
+  if (!input) {
+    resultEl.innerHTML = '<p class="text-dim" style="font-family:var(--font-mono);font-size:0.82rem;">Please paste an error message first.</p>';
+    return;
+  }
+
+  const matches = ERROR_DB.filter(e => e.pattern.test(input));
+
+  if (matches.length === 0) {
+    resultEl.innerHTML = `
+      <div class="decode-card">
+        <div class="decode-card-header">No exact match found</div>
+        <div class="decode-section">
+          <p>Your error did not match any known pattern. Try searching for key words from your error in the glossary or a search engine. Common strategies:</p>
+          <ul style="font-size:0.85rem;margin-top:8px;">
+            <li>Copy just the error message (not the file/line number)</li>
+            <li>Search on <strong>cppreference.com</strong> for function documentation</li>
+            <li>Add <code>-Wall -Wextra</code> to your compile command for more context</li>
+            <li>Run with <code>-fsanitize=address</code> to detect memory errors</li>
+          </ul>
+        </div>
+      </div>`;
+    return;
+  }
+
+  matches.forEach(match => {
+    const card = document.createElement('div');
+    card.className = 'decode-card';
+    card.innerHTML = `
+      <div class="decode-card-header">⚠ ${escHtml(match.title)}</div>
+      <div class="decode-section">
+        <div class="decode-section-title">What it means</div>
+        <p>${escHtml(match.meaning)}</p>
+      </div>
+      <div class="decode-section">
+        <div class="decode-section-title">Most likely cause</div>
+        <p>${escHtml(match.cause)}</p>
+      </div>
+      <div class="decode-section">
+        <div class="decode-section-title">How to fix it</div>
+        <p style="white-space:pre-line">${escHtml(match.fix)}</p>
+      </div>
+      <div class="decode-section">
+        <div class="decode-section-title">Example</div>
+        <div class="diff-container">
+          <pre class="diff-bad"><code class="language-c">${escHtml(match.bad_code)}</code></pre>
+          <pre class="diff-good"><code class="language-c">${escHtml(match.good_code)}</code></pre>
+        </div>
+      </div>`;
+    resultEl.appendChild(card);
+  });
+
+  hljs.highlightAll();
+});
+
+function escHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* Allow Ctrl+Enter or Enter in textarea to trigger decode */
+document.getElementById('error-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) {
+    document.getElementById('decode-btn').click();
+  }
+});
+</script>
+</body>
+</html>
