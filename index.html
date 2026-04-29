@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>C Programming — Learn C from Zero</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo">C_LEARN</div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label">
+        <span>Progress</span><span>0/18</span>
+      </div>
+      <div id="progress-bar-track">
+        <div id="progress-bar-fill"></div>
+      </div>
+    </div>
+    <div class="streak-display">⚡ Start your streak today</div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <h1>Learn C Programming</h1>
+    <p class="text-dim" style="font-family:var(--font-mono);font-size:0.82rem;margin-bottom:24px;">
+      A structured, offline course from fundamentals to systems programming.
+      <strong>Fonts and syntax highlighting require an internet connection on first visit and will then cache automatically.</strong>
+    </p>
+
+    <!-- Dashboard -->
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <div class="card-title">Lessons Completed</div>
+        <div class="card-value" id="dash-completed">0</div>
+        <div class="card-sub">of 18 total</div>
+      </div>
+      <div class="dashboard-card">
+        <div class="card-title">Current Streak</div>
+        <div class="card-value" id="streak-count">0</div>
+        <div class="card-sub">days in a row</div>
+      </div>
+      <div class="dashboard-card">
+        <div class="card-title">Reviews Due</div>
+        <div class="card-value" id="dash-due" style="color:var(--amber)">0</div>
+        <div class="card-sub">spaced-repetition queue</div>
+      </div>
+      <div class="dashboard-card">
+        <div class="card-title">Overall Progress</div>
+        <div class="card-value" id="dash-pct">0%</div>
+        <div class="card-sub">keep going!</div>
+      </div>
+    </div>
+
+    <!-- Review Panel -->
+    <div class="review-panel" id="review-panel" role="button" tabindex="0" aria-label="Start review session">
+      <div class="review-title">📚 Spaced Repetition Review</div>
+      <p style="margin:6px 0 0;font-family:var(--font-mono);font-size:0.8rem;color:var(--text-dim)">
+        <span id="review-count" class="review-count">0</span> questions due today
+        <span style="color:var(--text-muted);font-size:0.72rem;margin-left:8px">— click to start review session</span>
+      </p>
+    </div>
+
+    <!-- Phase Progress -->
+    <h2>Course Progress</h2>
+    <div class="phase-grid">
+      <div class="phase-card" id="phase-card-1">
+        <div class="phase-name">Phase 1 — Fundamentals</div>
+        <div class="phase-bar-track"><div class="phase-bar-fill" id="phase1-bar" style="width:0%"></div></div>
+        <div class="phase-count" id="phase1-count">0 / 6</div>
+      </div>
+      <div class="phase-card" id="phase-card-2">
+        <div class="phase-name">Phase 2 — Deeper Concepts</div>
+        <div class="phase-bar-track"><div class="phase-bar-fill" id="phase2-bar" style="width:0%"></div></div>
+        <div class="phase-count" id="phase2-count">0 / 4</div>
+      </div>
+      <div class="phase-card" id="phase-card-3">
+        <div class="phase-name">Phase 3 — Advanced</div>
+        <div class="phase-bar-track"><div class="phase-bar-fill" id="phase3-bar" style="width:0%"></div></div>
+        <div class="phase-count" id="phase3-count">0 / 4</div>
+      </div>
+      <div class="phase-card" id="phase-card-4">
+        <div class="phase-name">Phase 4 — Projects</div>
+        <div class="phase-bar-track"><div class="phase-bar-fill" id="phase4-bar" style="width:0%"></div></div>
+        <div class="phase-count" id="phase4-count">0 / 4</div>
+      </div>
+    </div>
+
+    <!-- Badges -->
+    <h2>Badges</h2>
+    <div class="badges-grid" id="badges-container"></div>
+
+    <!-- Start Button -->
+    <h2>Ready to Start?</h2>
+    <p>Begin with <strong>Introduction to C</strong> — learn what C is, why it matters, and what you'll be building by the end of this course.</p>
+    <a href="pages/phase1/intro.html" class="btn-nav primary" style="display:inline-flex;margin-top:8px;">Start Learning →</a>
+
+    <hr>
+    <p style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-muted)">
+      Pure HTML/CSS/JS — no frameworks, no build tools. Works offline after first load.
+      Use → / ← arrow keys to navigate between lessons.
+    </p>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Site</div>
+      <div class="panel-value">Dashboard</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Quick Links</div>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-top:4px;">
+        <a href="pages/phase1/intro.html" style="font-size:0.72rem;">→ Phase 1</a>
+        <a href="pages/phase2/arrays-strings.html" style="font-size:0.72rem;">→ Phase 2</a>
+        <a href="pages/phase3/memory-management.html" style="font-size:0.72rem;">→ Phase 3</a>
+        <a href="pages/phase4/project-calculator.html" style="font-size:0.72rem;">→ Phase 4</a>
+        <a href="tools/error-decoder.html" style="font-size:0.72rem;">→ Error Decoder</a>
+        <a href="reference/glossary.html" style="font-size:0.72rem;">→ Glossary</a>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top" aria-label="Scroll to top">↑ top</button>
+
+<script src="scripts/main.js"></script>
+<script src="scripts/spaced-repetition.js"></script>
+<script src="scripts/streaks.js"></script>
+<script src="scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Update dashboard numbers
+  function refreshDash() {
+    const done = window.completedCount ? window.completedCount() : 0;
+    const total = window.LESSONS ? window.LESSONS.length : 18;
+    document.getElementById('dash-completed').textContent = done;
+    document.getElementById('dash-pct').textContent = Math.round(done/total*100) + '%';
+    const due = window.getDueCount ? window.getDueCount() : 0;
+    document.getElementById('dash-due').textContent = due;
+    document.getElementById('review-count').textContent = due;
+
+    [1,2,3,4].forEach(p => {
+      const pLessons = window.LESSONS ? window.LESSONS.filter(l => l.phase === p) : [];
+      const pDone = pLessons.filter(l => window.isComplete && window.isComplete(l.id)).length;
+      const total = pLessons.length;
+      const bar = document.getElementById(`phase${p}-bar`);
+      const count = document.getElementById(`phase${p}-count`);
+      if (bar) bar.style.width = (total ? Math.round(pDone/total*100) : 0) + '%';
+      if (count) count.textContent = `${pDone} / ${total}`;
+    });
+  }
+  refreshDash();
+  window.addEventListener('lessonCompleted', refreshDash);
+  document.getElementById('review-panel')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') window.openReview && window.openReview();
+  });
+});
+</script>
+</body>
+</html>

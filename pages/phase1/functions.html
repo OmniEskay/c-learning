@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Functions — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 1 · Lesson 6</span>
+      <span class="meta-badge time">⏱ ~30 min read + practice</span>
+    </div>
+
+    <h1>Functions</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>Every operating system call you make — <code>open()</code>, <code>read()</code>, <code>malloc()</code> — is a function. Understanding how functions work at the stack level is prerequisite knowledge for debugging with GDB, reading crash dumps, understanding recursion, and grasping why C passes everything by value. Function stack frames are the foundation of the call stack you see in every debugger.</p>
+    </div>
+
+    <h2>Defining and Calling Functions</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+/* Function definition */
+int add(int a, int b) {
+    return a + b;
+}
+
+double average(int arr[], int len) {
+    int sum = 0;
+    for (int i = 0; i &lt; len; i++) {
+        sum += arr[i];
+    }
+    return (double)sum / len;
+}
+
+int main(void) {
+    int result = add(3, 7);
+    printf("3 + 7 = %d\n", result);
+
+    int numbers[] = {10, 20, 30, 40, 50};
+    printf("Average: %.1f\n", average(numbers, 5));
+
+    return 0;
+}</code></pre>
+
+    <h2>Function Prototypes</h2>
+    <p>C reads files top-to-bottom. If you call a function before it's defined, the compiler doesn't know its signature. A <span class="glossary-term" data-term="prototype">prototype</span> solves this by declaring the function signature early:</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+/* Prototypes — declare signature before main */
+int multiply(int a, int b);
+void print_result(int n);
+
+int main(void) {
+    int r = multiply(4, 5);  /* compiler knows multiply() from prototype */
+    print_result(r);
+    return 0;
+}
+
+/* Definitions can come after main */
+int multiply(int a, int b) {
+    return a * b;
+}
+
+void print_result(int n) {
+    printf("Result: %d\n", n);
+}</code></pre>
+    <p>In real projects, prototypes live in <span class="glossary-term" data-term="header file">header files</span> (<code>.h</code>). The <code>#include</code> directive pulls them in wherever needed.</p>
+
+    <h2>Pass by Value</h2>
+    <p>C passes all arguments <strong>by value</strong> — the function receives a <em>copy</em>. Modifying the parameter does not affect the original variable:</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+void try_to_double(int x) {
+    x = x * 2;         /* only modifies the local copy */
+    printf("Inside: %d\n", x);
+}
+
+int main(void) {
+    int n = 10;
+    try_to_double(n);
+    printf("Outside: %d\n", n);  /* still 10! */
+    return 0;
+}</code></pre>
+    <p>To actually modify a variable from a function, you pass a <em>pointer</em> to it (covered in the Pointers lesson).</p>
+
+    <h2>Scope</h2>
+    <p><span class="glossary-term" data-term="scope">Scope</span> determines where a variable is visible:</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int global_count = 0;  /* global scope — visible everywhere */
+
+void increment(void) {
+    global_count++;     /* can access global */
+    int local = 5;      /* local scope — only visible inside increment() */
+}
+
+int main(void) {
+    int x = 10;         /* local to main */
+    {
+        int y = 20;     /* local to this inner block */
+        printf("x=%d y=%d\n", x, y);
+    }
+    /* y is NOT visible here */
+    printf("x=%d global=%d\n", x, global_count);
+    return 0;
+}</code></pre>
+
+    <h2>Memory Diagram: Stack Frames</h2>
+    <div class="memory-diagram">STACK during: result = add(3, 7)
+
+High addresses
+┌─────────────────────────────────────┐
+│ main() stack frame                  │
+│  ┌────────────────────────────────┐ │
+│  │ result (int)         │ ????    │ │ ← waiting for return value
+│  │ return address       │ 0x4011a0│ │ ← where to resume after add()
+│  └────────────────────────────────┘ │
+├─────────────────────────────────────┤
+│ add() stack frame (pushed on call)  │
+│  ┌────────────────────────────────┐ │
+│  │ a (int)              │ 3       │ │ ← copy of 3
+│  │ b (int)              │ 7       │ │ ← copy of 7
+│  │ return value reg     │ 10      │ │
+│  └────────────────────────────────┘ │
+└─────────────────────────────────────┘ ← stack pointer (SP)
+Low addresses
+
+When add() returns:
+  1. Return value (10) placed in register
+  2. add() stack frame is popped (SP moves up)
+  3. main() resumes at saved return address
+  4. result = 10</div>
+
+    <h2>Recursive Functions</h2>
+    <p>A function can call itself — this is <span class="glossary-term" data-term="recursion">recursion</span>. Every recursive function needs a base case to terminate:</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+/* Compute n! (factorial) */
+int factorial(int n) {
+    if (n &lt;= 1) return 1;        /* base case */
+    return n * factorial(n - 1); /* recursive case */
+}
+
+int main(void) {
+    for (int i = 0; i &lt;= 6; i++) {
+        printf("%d! = %d\n", i, factorial(i));
+    }
+    return 0;
+}</code></pre>
+
+    <h2>Diff: Missing Function Prototype</h2>
+    <div class="diff-container">
+      <pre class="diff-bad"><code class="language-c">/* BROKEN: function used before defined */
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    /* Compiler doesn't know square() yet! */
+    int s = square(5);
+    printf("%d\n", s);
+    return 0;
+}
+
+int square(int x) {
+    return x * x;
+}</code></pre>
+      <pre class="diff-good"><code class="language-c">/* FIXED: prototype before main */
+#include &lt;stdio.h&gt;
+
+int square(int x);   /* prototype */
+
+int main(void) {
+    int s = square(5);
+    printf("%d\n", s);
+    return 0;
+}
+
+int square(int x) {
+    return x * x;
+}</code></pre>
+      <div class="diff-explanation">
+        <strong>What was wrong:</strong> In C89, calling a function before its definition or prototype was an "implicit declaration" — the compiler assumed it returned <code>int</code> and guessed the argument types. In C99+ this is an error. Even in C89, the implicit declaration is wrong if the function returns a non-int type.<br><br>
+        <strong>Why the fix works:</strong> The prototype <code>int square(int x);</code> tells the compiler the exact return type and parameter type before <code>main()</code> calls it. The compiler can then verify your call site is correct.
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>Expecting pass-by-reference</strong> — C copies arguments. If you want to modify a variable in the caller, pass a pointer to it (<code>void swap(int *a, int *b)</code>).</li>
+        <li><strong>Returning a pointer to a local variable</strong> — Local variables are destroyed when the function returns. Returning a pointer to one gives you a dangling pointer pointing to freed stack memory.</li>
+        <li><strong>Missing <code>return</code> in non-void function</strong> — If a non-void function reaches the end without a <code>return</code> statement, the return value is undefined. GCC warns with <code>-Wall</code>: "control reaches end of non-void function".</li>
+      </ul>
+    </div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Min and Max functions</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write two functions: <code>int min(int a, int b)</code> and <code>int max(int a, int b)</code>. Then write a third function <code>int clamp(int val, int lo, int hi)</code> that uses min and max to constrain a value to a range.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">clamp(val, lo, hi) = min(max(val, lo), hi). Alternatively, use if/else directly.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Prime checker</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a function <code>int is_prime(int n)</code> that returns 1 if n is prime and 0 otherwise. Use it to print all prime numbers up to 100.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">A number n is prime if it has no divisors other than 1 and n. Only check up to sqrt(n) — if n has a divisor larger than sqrt(n), it also has one smaller. Use: <code>#include &lt;math.h&gt;</code> and link with <code>-lm</code>.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Implement your own power function</span>
+        </div>
+        <div class="exercise-body">
+          <p>Implement <code>double my_pow(double base, int exp)</code> both iteratively and recursively. Handle negative exponents. Compare your results against <code>pow()</code> from <code>&lt;math.h&gt;</code>.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">For negative exponents: my_pow(x, -n) = 1.0 / my_pow(x, n). Recursive: base case is exp==0 returns 1.0; recursive case returns base * my_pow(base, exp-1). Iterative: multiply base by itself exp times using a loop.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-fn">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. What is a function prototype?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">The function body</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">A forward declaration of the function signature</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">A macro definition</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">A typedef</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">A prototype declares the return type and parameter types so the compiler can verify calls before seeing the definition. It ends with a semicolon.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. Variables declared inside a function have what scope?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">Global</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">Static</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">Local (block)</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">External</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">Local variables live on the stack and are destroyed when their enclosing block exits.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. What does <code>void</code> as a return type indicate?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">The function returns 0</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">The function returns a pointer</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">The function returns nothing</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">A compile error</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2-b">void means no return value. A void function can still use a bare return; to exit early.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Functions</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 1</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_fn_1', correct: 1 },
+  { id: 'q_fn_2', correct: 2 },
+  { id: 'q_fn_3', correct: 2 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-fn', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>

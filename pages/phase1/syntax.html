@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Syntax & Data Types — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 1 · Lesson 4</span>
+      <span class="meta-badge time">⏱ ~35 min read + practice</span>
+    </div>
+
+    <h1>Syntax &amp; Data Types</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>C's type system is not just syntax — it maps directly to hardware. An <code>int</code> is 4 bytes on most platforms; a <code>char</code> is always 1 byte. Understanding types means understanding memory layout, which matters when you're reading data from a file, a network packet, or a hardware register. A mismatch between what you declared and what you stored is one of the most common sources of security vulnerabilities (buffer overflows, type confusion bugs).</p>
+    </div>
+
+    <h2>Variables and Declarations</h2>
+    <p>In C, every variable must be declared with a type before use. The type tells the <span class="glossary-term" data-term="compiler">compiler</span> how many bytes to allocate and how to interpret the bit pattern stored there.</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    int age = 25;           /* 4 bytes, signed integer */
+    float temperature = 98.6f; /* 4 bytes, floating point */
+    double pi = 3.14159265; /* 8 bytes, double precision */
+    char grade = 'A';       /* 1 byte, character */
+    char name[] = "Alice";  /* array of chars (string) */
+
+    printf("Name: %s, Age: %d\n", name, age);
+    printf("Temp: %.1f, Grade: %c\n", temperature, grade);
+    return 0;
+}</code></pre>
+
+    <h2>Fundamental Data Types</h2>
+    <table>
+      <thead><tr><th>Type</th><th>Size</th><th>Range (typical)</th><th>Format</th></tr></thead>
+      <tbody>
+        <tr><td><code>char</code></td><td>1 byte</td><td>-128 to 127</td><td><code>%c</code>, <code>%d</code></td></tr>
+        <tr><td><code>unsigned char</code></td><td>1 byte</td><td>0 to 255</td><td><code>%u</code></td></tr>
+        <tr><td><code>short</code></td><td>2 bytes</td><td>-32,768 to 32,767</td><td><code>%hd</code></td></tr>
+        <tr><td><code>int</code></td><td>4 bytes</td><td>-2,147,483,648 to 2,147,483,647</td><td><code>%d</code></td></tr>
+        <tr><td><code>unsigned int</code></td><td>4 bytes</td><td>0 to 4,294,967,295</td><td><code>%u</code></td></tr>
+        <tr><td><code>long</code></td><td>4–8 bytes</td><td>platform-dependent</td><td><code>%ld</code></td></tr>
+        <tr><td><code>long long</code></td><td>8 bytes</td><td>±9.2 × 10¹⁸</td><td><code>%lld</code></td></tr>
+        <tr><td><code>float</code></td><td>4 bytes</td><td>≈ ±3.4 × 10³⁸</td><td><code>%f</code></td></tr>
+        <tr><td><code>double</code></td><td>8 bytes</td><td>≈ ±1.7 × 10³⁰⁸</td><td><code>%lf</code> / <code>%f</code></td></tr>
+      </tbody>
+    </table>
+    <p>Use <code>sizeof(type)</code> to check the exact size on your platform:</p>
+    <pre><code class="language-c">printf("int size: %zu bytes\n", sizeof(int));
+printf("double size: %zu bytes\n", sizeof(double));</code></pre>
+
+    <h2>Constants</h2>
+    <p>Two ways to define constants in C:</p>
+    <pre><code class="language-c">/* Method 1: const keyword — type-checked, preferred */
+const int MAX_SIZE = 100;
+const double GRAVITY = 9.81;
+
+/* Method 2: #define macro — textual substitution */
+#define BUFFER_SIZE 1024
+#define PI 3.14159
+
+/* Using them */
+char buffer[BUFFER_SIZE];  /* 1024-byte array */
+double area = PI * radius * radius;</code></pre>
+    <p>Prefer <code>const</code> over <code>#define</code> for typed constants — the compiler can type-check them and they appear in debuggers with their original names.</p>
+
+    <h2>Operators</h2>
+    <h3>Arithmetic</h3>
+    <pre><code class="language-c">int a = 17, b = 5;
+printf("%d\n", a + b);   /* 22 — addition */
+printf("%d\n", a - b);   /* 12 — subtraction */
+printf("%d\n", a * b);   /* 85 — multiplication */
+printf("%d\n", a / b);   /* 3  — integer division (truncates!) */
+printf("%d\n", a % b);   /* 2  — modulo (remainder) */</code></pre>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Integer Division Trap</div>
+      <p><code>17 / 5</code> in C is <code>3</code>, not <code>3.4</code>. When both operands are integers, the result is an integer (truncated toward zero). To get float division: <code>(double)17 / 5</code> or <code>17.0 / 5</code>.</p>
+    </div>
+
+    <h3>Comparison and Logical</h3>
+    <pre><code class="language-c">int x = 10, y = 20;
+
+/* Comparison — return 1 (true) or 0 (false) */
+x == y   /* 0 — not equal */
+x != y   /* 1 — not equal */
+x &lt; y    /* 1 — less than */
+x &gt;= y   /* 0 — greater or equal */
+
+/* Logical */
+(x &lt; 15) && (y &gt; 15)  /* 1 — AND: both true */
+(x &gt; 15) || (y &gt; 15)  /* 1 — OR: at least one true */
+!(x == y)              /* 1 — NOT */</code></pre>
+
+    <h3>Assignment and Shorthand</h3>
+    <pre><code class="language-c">int n = 10;
+n += 5;   /* n = n + 5 = 15 */
+n -= 3;   /* n = n - 3 = 12 */
+n *= 2;   /* n = n * 2 = 24 */
+n /= 4;   /* n = n / 4 = 6  */
+n %= 4;   /* n = n % 4 = 2  */
+n++;      /* n = n + 1 = 3  (post-increment) */
+++n;      /* n = n + 1 = 4  (pre-increment)  */
+n--;      /* n = n - 1 = 3  */</code></pre>
+
+    <h2>Reading Input with scanf</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    int age;
+    float height;
+    char name[50];
+
+    printf("Enter your name: ");
+    scanf("%49s", name);      /* %49s reads at most 49 chars — prevents overflow */
+
+    printf("Enter your age: ");
+    scanf("%d", &age);        /* & = address-of: scanf needs to WRITE to age */
+
+    printf("Enter height (m): ");
+    scanf("%f", &height);
+
+    printf("%s is %d years old and %.2fm tall.\n", name, age, height);
+    return 0;
+}</code></pre>
+    <p>Key point: <code>scanf</code> takes <em>pointers</em> to where it should store the values. That's why you write <code>&age</code> — you're passing the <em>address</em> of <code>age</code>, not its value. For strings (<code>char[]</code>), the array name already decays to a pointer, so no <code>&</code> is needed (but the width limit is important).</p>
+
+    <h2>Diff: Wrong Format Specifier</h2>
+    <div class="diff-container">
+      <pre class="diff-bad"><code class="language-c">/* BROKEN: %d used for a float */
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    float temp = 98.6;
+    printf("Temperature: %d\n", temp);
+    return 0;
+}</code></pre>
+      <pre class="diff-good"><code class="language-c">/* FIXED: %f for float */
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    float temp = 98.6f;
+    printf("Temperature: %.1f\n", temp);
+    return 0;
+}</code></pre>
+      <div class="diff-explanation">
+        <strong>What was wrong:</strong> <code>%d</code> expects an <code>int</code> argument. Passing a <code>float</code> where <code>%d</code> is expected is <span class="glossary-term" data-term="undefined behaviour">undefined behaviour</span> — you'll typically see garbage output like <code>Temperature: -1073741824</code>. GCC with <code>-Wall</code> will warn: <em>"format '%d' expects argument of type 'int'"</em>.<br><br>
+        <strong>Why the fix works:</strong> <code>%f</code> is the correct specifier for <code>float</code> and <code>double</code>. The <code>%.1f</code> variant means "one decimal place". Adding the <code>f</code> suffix to <code>98.6f</code> makes it a float literal (without it, <code>98.6</code> is a double).
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>Forgetting <code>&</code> in scanf</strong> — <code>scanf("%d", age)</code> passes the <em>value</em> of age as an address, which is almost certainly invalid. Always use <code>scanf("%d", &age)</code>.</li>
+        <li><strong>Integer overflow</strong> — <code>int</code> maxes out at ~2.1 billion. Computing <code>1000000 * 1000000</code> as int silently overflows to a wrong value. Use <code>long long</code> or check your range.</li>
+        <li><strong>char sign</strong> — Whether <code>char</code> is signed or unsigned is implementation-defined. For clarity, explicitly write <code>signed char</code> or <code>unsigned char</code> when it matters.</li>
+      </ul>
+    </div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Type size explorer</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a program that prints the size in bytes of every fundamental type using <code>sizeof</code>. Include: char, short, int, long, long long, float, double, long double.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use <code>printf("%zu\n", sizeof(int))</code>. The %zu specifier is for size_t (the type returned by sizeof).</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Simple calculator</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a program that reads two integers and an operator character (<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>) from the user, then prints the result. Handle division by zero.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use <code>scanf("%d %c %d", &a, &op, &b)</code>. Use an if/else chain on <code>op</code> to select the operation. Check <code>b == 0</code> before division.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Bit manipulation</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a function that uses bitwise operators (<code>&</code>, <code>|</code>, <code>^</code>, <code>~</code>, <code>&lt;&lt;</code>, <code>&gt;&gt;</code>) to: (1) set a specific bit in an integer, (2) clear a specific bit, (3) toggle a specific bit, (4) check if a specific bit is set. Test with various inputs.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Set bit n: <code>x |= (1 &lt;&lt; n)</code>. Clear bit n: <code>x &amp;= ~(1 &lt;&lt; n)</code>. Toggle: <code>x ^= (1 &lt;&lt; n)</code>. Check: <code>(x &gt;&gt; n) &amp; 1</code>.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-syntax">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. Which format specifier prints a float with printf?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">%d</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">%i</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">%f</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">%s</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">%f is used for float and double in printf. %d and %i are for integers. Mixing them is undefined behaviour.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. What is the result of <code>7 % 3</code> in C?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">2</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">1</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">3</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">0</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">% is the modulo operator. 7 = 2×3 + 1, so the remainder is 1.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. Which declaration creates a constant integer?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">int const = 5;</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">const int x = 5;</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">#define int x 5</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">static int x = 5;</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">const int x = 5; declares a constant. static changes the storage duration (survives function calls) but doesn't prevent reassignment.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Syntax</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 1</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_syntax_1', correct: 2 },
+  { id: 'q_syntax_2', correct: 1 },
+  { id: 'q_syntax_3', correct: 1 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-syntax', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>

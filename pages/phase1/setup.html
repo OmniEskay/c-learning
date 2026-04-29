@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Setup & Toolchain — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 1 · Lesson 2</span>
+      <span class="meta-badge time">⏱ ~25 min read + practice</span>
+    </div>
+
+    <h1>Setup &amp; Toolchain</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>The compiler is the single most important tool in a C programmer's life. Understanding GCC's flags and error messages transforms cryptic red text into actionable debugging information. Professional C developers use <code>-Wall -Wextra -Werror</code> to catch bugs at compile time before they become runtime crashes in production.</p>
+    </div>
+
+    <h2>Installing the C Toolchain</h2>
+    <div class="tab-container">
+      <div class="tab-buttons">
+        <button class="tab-btn active" type="button">Linux</button>
+        <button class="tab-btn" type="button">macOS</button>
+        <button class="tab-btn" type="button">Windows</button>
+      </div>
+      <div class="tab-panel active">
+        <p><strong>Ubuntu / Debian:</strong></p>
+        <pre><code class="language-bash">sudo apt update
+sudo apt install build-essential gdb valgrind
+gcc --version</code></pre>
+        <p><strong>Fedora / RHEL:</strong></p>
+        <pre><code class="language-bash">sudo dnf groupinstall "Development Tools"
+sudo dnf install valgrind gdb
+gcc --version</code></pre>
+        <p><strong>Arch Linux:</strong></p>
+        <pre><code class="language-bash">sudo pacman -S base-devel gdb valgrind
+gcc --version</code></pre>
+      </div>
+      <div class="tab-panel">
+        <p>Install Xcode Command Line Tools (includes Clang which is GCC-compatible):</p>
+        <pre><code class="language-bash">xcode-select --install
+clang --version   # or: gcc --version (symlinked to clang)</code></pre>
+        <p>Install Homebrew for additional tools:</p>
+        <pre><code class="language-bash">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install gcc gdb valgrind</code></pre>
+      </div>
+      <div class="tab-panel">
+        <p>Two options:</p>
+        <p><strong>Option 1: WSL2 (recommended)</strong> — install Windows Subsystem for Linux, then follow the Linux instructions above.</p>
+        <pre><code class="language-powershell">wsl --install   # Run in PowerShell as Administrator</code></pre>
+        <p><strong>Option 2: MinGW-w64</strong></p>
+        <ol>
+          <li>Download and install <a href="https://www.msys2.org/" target="_blank" rel="noopener">MSYS2</a></li>
+          <li>In the MSYS2 terminal: <code>pacman -S mingw-w64-x86_64-gcc</code></li>
+          <li>Add <code>C:\msys64\mingw64\bin</code> to your PATH</li>
+        </ol>
+      </div>
+    </div>
+
+    <h2>Essential GCC Flags</h2>
+    <table>
+      <thead><tr><th>Flag</th><th>What it does</th><th>When to use</th></tr></thead>
+      <tbody>
+        <tr><td><code>-o name</code></td><td>Name the output binary</td><td>Always</td></tr>
+        <tr><td><code>-Wall</code></td><td>Enable all common warnings</td><td>Always</td></tr>
+        <tr><td><code>-Wextra</code></td><td>Enable extra warnings beyond -Wall</td><td>Always</td></tr>
+        <tr><td><code>-Werror</code></td><td>Treat warnings as errors</td><td>Production code</td></tr>
+        <tr><td><code>-g</code></td><td>Include debug symbols for GDB</td><td>Debugging</td></tr>
+        <tr><td><code>-O2</code></td><td>Optimise for speed</td><td>Release builds</td></tr>
+        <tr><td><code>-std=c11</code></td><td>Use C11 standard</td><td>Modern code</td></tr>
+        <tr><td><code>-fsanitize=address</code></td><td>AddressSanitizer — detect memory errors</td><td>Testing</td></tr>
+      </tbody>
+    </table>
+
+    <p>A good default command for learning:</p>
+    <pre><code class="language-bash">gcc -Wall -Wextra -g -std=c11 main.c -o main</code></pre>
+
+    <h2>VS Code Setup</h2>
+    <p>Install these extensions:</p>
+    <ul>
+      <li><strong>C/C++</strong> (Microsoft) — IntelliSense, debugging</li>
+      <li><strong>C/C++ Extension Pack</strong> — includes cmake tools</li>
+      <li><strong>clangd</strong> (optional) — faster, more accurate IntelliSense</li>
+    </ul>
+    <p>Create <code>.vscode/tasks.json</code> for one-key builds:</p>
+    <pre><code class="language-json">{
+  "version": "2.0.0",
+  "tasks": [{
+    "label": "build",
+    "type": "shell",
+    "command": "gcc -Wall -Wextra -g -std=c11 ${file} -o ${fileDirname}/${fileBasenameNoExtension}",
+    "group": { "kind": "build", "isDefault": true }
+  }]
+}</code></pre>
+    <p>Press <kbd>Ctrl+Shift+B</kbd> to build, <kbd>F5</kbd> to debug.</p>
+
+    <h2>Basic Program Structure</h2>
+    <pre><code class="language-c">/* Every C program needs at minimum these elements */
+#include &lt;stdio.h&gt;   /* Include standard I/O library declarations */
+
+int main(void) {     /* Entry point — the OS calls main() to start */
+    printf("Hello!\n");
+    return 0;        /* 0 = success; non-zero = error code */
+}</code></pre>
+
+    <p>Every C program must have a <code>main()</code> function. The <span class="glossary-term" data-term="preprocessor"><code>#include</code></span> directive tells the <span class="glossary-term" data-term="preprocessor">preprocessor</span> to copy the contents of <code>stdio.h</code> into your file, giving you access to <code>printf</code> and friends.</p>
+
+    <div class="section-divider"></div>
+
+    <h2>Diff: Missing #include → Compiler Error</h2>
+    <div class="diff-container">
+      <pre class="diff-bad"><code class="language-c">/* BROKEN: missing #include */
+
+int main(void) {
+    printf("Hello, World!\n");
+    return 0;
+}</code></pre>
+      <pre class="diff-good"><code class="language-c">/* FIXED: include stdio.h */
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    printf("Hello, World!\n");
+    return 0;
+}</code></pre>
+      <div class="diff-explanation">
+        <strong>What was wrong:</strong> Without <code>#include &lt;stdio.h&gt;</code>, the compiler does not know what <code>printf</code> is. This produces an "implicit declaration of function 'printf'" warning or error.<br><br>
+        <strong>Why the fix works:</strong> <code>stdio.h</code> contains the prototype <code>int printf(const char *format, ...);</code>. Including it tells the compiler the exact signature of printf so it can type-check your call and link to the correct library function.
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>Ignoring warnings</strong> — GCC warnings are almost always indicating real bugs. Enable <code>-Wall</code> and fix every warning before moving on.</li>
+        <li><strong>Missing semicolons</strong> — C statements end with <code>;</code>. Forgetting one causes confusing errors on the <em>next</em> line, not the line with the bug.</li>
+        <li><strong>Compiling the wrong file</strong> — If you edit <code>main.c</code> but compile <code>old.c</code>, the binary won't reflect your changes. Always check the filename in your compile command.</li>
+      </ul>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Compile with different flags</span>
+        </div>
+        <div class="exercise-body">
+          <p>Write a minimal C program with a deliberate warning (e.g., declare an unused variable <code>int x;</code>). Compile it without <code>-Wall</code>, then with <code>-Wall</code>. Notice the difference.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content"><code>int x;</code> inside main creates an "unused variable" warning with -Wall. Try also <code>-Werror</code> to see it become a compile error.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Explore the compilation stages</span>
+        </div>
+        <div class="exercise-body">
+          <p>Using a simple C file, run each stage separately and inspect the output:<br>
+          <code>gcc -E main.c -o main.i</code> (preprocessed)<br>
+          <code>gcc -S main.c -o main.s</code> (assembly)<br>
+          <code>gcc -c main.c -o main.o</code> (object file)<br>
+          Open each output file and describe what you see.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">main.i is a large C file with all includes expanded. main.s is assembly (x86 or ARM instructions). main.o is binary — use <code>objdump -d main.o</code> to disassemble it.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Write a Makefile</span>
+        </div>
+        <div class="exercise-body">
+          <p>Create a <code>Makefile</code> that compiles a C project with multiple source files. It should have targets: <code>all</code>, <code>clean</code>, and correctly handle recompilation when only one file changes.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use pattern rules: <code>%.o: %.c</code>. The linker step combines all .o files. The <code>clean</code> target runs <code>rm -f *.o program</code>. Use automatic variables <code>$@</code> (target) and <code>$&lt;</code> (first prerequisite).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-setup">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. Which flag enables all common warnings in GCC?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">-w</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">-Wall</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">-Warn</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">-W</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">-Wall enables a broad set of warnings. Note: -w (lowercase) actually <em>suppresses</em> warnings — don't confuse them!</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. What does the -o flag do in <code>gcc main.c -o program</code>?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">Enables optimisation</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">Names the output binary</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">Opens a file</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">Sets object file mode</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">-o specifies the output file name. Without it, GCC defaults to creating a.out (or a.exe on Windows).</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. What stage converts .c source to a .o object file?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">Linking</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">Preprocessing</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">Compilation</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">Execution</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">Compilation (-c flag) translates C to machine-code object files. Linking then combines object files with library code into an executable.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Setup</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 1</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_setup_1', correct: 1 },
+  { id: 'q_setup_2', correct: 1 },
+  { id: 'q_setup_3', correct: 2 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-setup', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>

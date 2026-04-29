@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Introduction to C — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 1 · Lesson 1</span>
+      <span class="meta-badge time">⏱ ~20 min read + practice</span>
+    </div>
+
+    <h1>Introduction to C</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>C powers the Linux kernel — the foundation of every Android phone, web server, and supercomputer on the planet. When you type a command in a terminal, open a file, or run any program, the operating system handling that request is mostly written in C. Learning C means learning the language at the foundation of modern computing.</p>
+    </div>
+
+    <h2>What is C?</h2>
+    <p>C is a general-purpose <span class="glossary-term" data-term="compiler">compiled</span> programming language created in 1972 by Dennis Ritchie at Bell Labs. It was originally written to develop the Unix operating system — and that lineage defines its character: C is designed to be close to the hardware, fast, and portable across different machines.</p>
+
+    <p>C occupies a unique position. It is not as low-level as assembly (you don't write individual CPU instructions), but not as abstract as Python or Java (there is no runtime managing memory for you). This makes C a "mid-level" language — expressive enough to write complex programs, yet close enough to the metal to control exactly what the CPU and memory do.</p>
+
+    <h2>A Brief History</h2>
+    <table>
+      <thead><tr><th>Year</th><th>Milestone</th></tr></thead>
+      <tbody>
+        <tr><td>1972</td><td>Dennis Ritchie creates C at Bell Labs to rewrite Unix</td></tr>
+        <tr><td>1978</td><td>"The C Programming Language" by Kernighan &amp; Ritchie — the K&amp;R book</td></tr>
+        <tr><td>1989</td><td>ANSI C (C89) — first official standard, enabling portability</td></tr>
+        <tr><td>1999</td><td>C99 — added inline functions, variable-length arrays, <code>//</code> comments</td></tr>
+        <tr><td>2011</td><td>C11 — threading support, generic macros, bounds-checking</td></tr>
+        <tr><td>2023</td><td>C23 — latest standard, improving type safety and modern syntax</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Where is C Used Today?</h2>
+    <p>C is not a "legacy" language gathering dust. It is actively used in:</p>
+    <ul>
+      <li><strong>Operating systems</strong> — Linux kernel, macOS/iOS kernel (XNU), Windows NT kernel</li>
+      <li><strong>Embedded systems</strong> — Arduino, STM32 microcontrollers, automotive ECUs</li>
+      <li><strong>Databases</strong> — SQLite, PostgreSQL, MySQL core engines</li>
+      <li><strong>Language runtimes</strong> — CPython (Python interpreter), Ruby MRI, LuaJIT</li>
+      <li><strong>Networking</strong> — OpenSSL, nginx, Redis, memcached</li>
+      <li><strong>Game engines</strong> — portions of Quake, Doom, id Tech engines</li>
+    </ul>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Misconception</div>
+      <p>C is <em>not</em> just a "learning language." It is production software infrastructure used by billions of devices. The skills you develop here are directly applicable to systems programming careers.</p>
+    </div>
+
+    <h2>The C Compilation Model</h2>
+    <p>Unlike Python (which runs code line by line), C is <strong>compiled</strong>. Your source code goes through several stages before it becomes a runnable program:</p>
+
+    <div class="ascii-diagram">Preprocessing → Compilation → Assembly → Linking
+─────────────────────────────────────────────────────
+  hello.c          hello.i       hello.s     hello.o
+  (source)     (preprocessed)  (assembly)  (object file)
+                                                 │
+                                          ┌──────▼──────┐
+                                     libc │  Linker      │ → hello (binary)
+                                    ──────┘             │
+                                                        └─ runnable executable</div>
+
+    <ul>
+      <li><strong>Preprocessor</strong>: Expands <code>#include</code> directives and <code>#define</code> macros</li>
+      <li><strong>Compiler</strong>: Translates C into assembly language</li>
+      <li><strong>Assembler</strong>: Converts assembly to machine-code object files</li>
+      <li><strong><span class="glossary-term" data-term="linker">Linker</span></strong>: Combines object files with library code into a final executable</li>
+    </ul>
+
+    <p>In practice, <code>gcc hello.c -o hello</code> does all four steps automatically. You only need to think about the stages when diagnosing errors — a "linker error" is different from a "compiler error."</p>
+
+    <h2>Why Learn C in 2024+?</h2>
+    <p>Several compelling reasons:</p>
+    <ol>
+      <li><strong>Mental model of computing</strong> — C forces you to understand memory, pointers, and data representation. These concepts apply in every language you'll ever use.</li>
+      <li><strong>Performance-critical code</strong> — When nanoseconds matter (trading systems, game engines, signal processing), C is often the answer.</li>
+      <li><strong>Understanding your tools</strong> — Most developer tools (editors, shells, compilers) are written in C. Reading and contributing to these becomes possible.</li>
+      <li><strong>Embedded/IoT development</strong> — C is the only viable choice for many microcontrollers.</li>
+      <li><strong>Foundation for C++/Rust</strong> — Both languages inherit C's syntax and mental models. C is the fastest path to understanding them deeply.</li>
+    </ol>
+
+    <h2>What You'll Build in This Course</h2>
+    <p>By the end of the four phases, you will have built:</p>
+    <ul>
+      <li>A command-line calculator with input validation</li>
+      <li>A student records system using structs</li>
+      <li>A file-backed records system with search and sort</li>
+      <li>A mini shell using <code>fork()</code>, <code>exec()</code>, and <code>wait()</code></li>
+    </ul>
+    <p>More importantly, you'll understand <em>why</em> the code works — at the level of memory addresses and CPU instructions.</p>
+
+    <div class="section-divider"></div>
+
+    <!-- Practice Exercises -->
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Identify the compilation stage</span>
+        </div>
+        <div class="exercise-body">
+          <p>For each of the following GCC flags, identify which compilation stage it stops at:<br>
+          <code>gcc -E</code>, <code>gcc -S</code>, <code>gcc -c</code>, <code>gcc</code> (no flag)</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">-E = preprocessor only; -S = compile to assembly; -c = compile to object file; no flag = full build including linking.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Research two C projects</span>
+        </div>
+        <div class="exercise-body">
+          <p>Pick two projects from the list (Linux, SQLite, Redis, CPython). Look up their GitHub repositories and identify: how large the codebase is (lines of code), how old it is, and one interesting design decision documented in their README or contributing guide.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">SQLite is a great choice — its documentation is excellent and it has a fascinating "lemon" parser and WAL journal design. Redis is also well-documented.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Trace a system call</span>
+        </div>
+        <div class="exercise-body">
+          <p>On Linux, run <code>strace echo "hello"</code>. Find the <code>write</code> system call in the output. Research what this system call does at the kernel level and which C function in stdio.h ultimately calls it when you use <code>printf</code>.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">printf → fwrite → write (syscall). The write() syscall takes a file descriptor, a buffer address, and a byte count. File descriptor 1 is stdout.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- Quiz -->
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-intro">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. What year was C first standardized by ANSI?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">1978</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">1983</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">1989</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">1999</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">ANSI C (C89) was standardized in 1989, giving portability across compilers. The K&amp;R book came in 1978 but that predates the standard.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. Which of the following is NOT a direct use of C?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">Linux kernel</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">Android runtime (Dalvik/ART)</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">PostgreSQL internals</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">Java bytecode compilation</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">Java bytecode is compiled by the JVM, which is itself written in C/C++, but the bytecode compilation is a Java concept, not C code you'd write directly.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. C is classified as a:</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">High-level scripting language</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">Low-level assembly language</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">Mid-level compiled language</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">Interpreted bytecode language</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">C is often called mid-level — it has high-level constructs (functions, loops) but allows direct memory manipulation like a low-level language.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Intro to C</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 1</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_intro_1', correct: 2 },
+  { id: 'q_intro_2', correct: 3 },
+  { id: 'q_intro_3', correct: 2 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-intro', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>

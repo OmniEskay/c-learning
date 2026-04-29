@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hello, World! — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 1 · Lesson 3</span>
+      <span class="meta-badge time">⏱ ~25 min read + practice</span>
+    </div>
+
+    <h1>Hello, World!</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>Hello World is a sanity check for your entire toolchain — compiler, linker, runtime, and terminal. Every time you set up C on a new machine, building and running Hello World confirms everything is wired up correctly. In embedded systems, the equivalent is blinking an LED — it proves your code is actually executing on the target hardware.</p>
+    </div>
+
+    <h2>The Complete Hello World Program</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    printf("Hello, World!\n");
+    return 0;
+}</code></pre>
+
+    <p>Save this as <code>hello.c</code>. Now compile and run it:</p>
+    <pre><code class="language-bash">gcc -Wall -o hello hello.c
+./hello</code></pre>
+    <pre><code>Hello, World!</code></pre>
+
+    <h2>Line-by-Line Walkthrough</h2>
+
+    <h3><code>#include &lt;stdio.h&gt;</code></h3>
+    <p>This is a <span class="glossary-term" data-term="preprocessor">preprocessor</span> directive. Before the <span class="glossary-term" data-term="compiler">compiler</span> sees your code, the preprocessor replaces <code>#include &lt;stdio.h&gt;</code> with the entire contents of the <span class="glossary-term" data-term="header file">header file</span> <code>stdio.h</code>. That header contains the <em>declaration</em> (prototype) for <code>printf</code>:</p>
+    <pre><code class="language-c">int printf(const char *restrict format, ...);</code></pre>
+    <p>Without this, the compiler doesn't know <code>printf</code> exists and will either warn or error out.</p>
+
+    <h3><code>int main(void)</code></h3>
+    <p>This declares the <code>main</code> function. Every C program must have exactly one <code>main</code> — it is the <strong>entry point</strong>, the function the operating system calls when it starts your program.</p>
+    <ul>
+      <li><code>int</code> — the return type. main() returns an integer to the OS.</li>
+      <li><code>main</code> — the name (special — the OS looks for this).</li>
+      <li><code>void</code> — this version takes no command-line arguments. Alternatively: <code>int main(int argc, char *argv[])</code>.</li>
+    </ul>
+
+    <h3><code>printf("Hello, World!\n");</code></h3>
+    <p><code>printf</code> is a <em>function call</em>. It is declared in <code>stdio.h</code> and defined in the C standard library (<code>libc</code>). The argument <code>"Hello, World!\n"</code> is a <strong>string literal</strong> — an array of characters stored in the program's read-only data segment.</p>
+    <p>The <code>\n</code> is an <em>escape sequence</em> representing a newline character (ASCII value 10). Without it, the next shell prompt would appear on the same line as your output.</p>
+
+    <h3><code>return 0;</code></h3>
+    <p>This returns the integer <code>0</code> from <code>main()</code> to the operating system. By convention: <strong>0 = success</strong>, non-zero = an error code. The shell can check this: <code>echo $?</code> prints the last program's exit code.</p>
+
+    <h2>Memory Diagram: Program Entry</h2>
+    <div class="memory-diagram">VIRTUAL MEMORY LAYOUT (simplified, 64-bit Linux)
+
+High addresses
+┌─────────────────────────────────┐
+│   Stack                         │ ← grows downward
+│   ┌─────────────────────────┐   │
+│   │ main() stack frame      │   │
+│   │  return address         │   │
+│   │  saved registers        │   │
+│   └─────────────────────────┘   │
+├─────────────────────────────────┤
+│   (unmapped — stack guard)      │
+├─────────────────────────────────┤
+│   Heap                          │ ← grows upward (malloc lives here)
+├─────────────────────────────────┤
+│   BSS  (uninitialised globals)  │
+├─────────────────────────────────┤
+│   Data (initialised globals)    │
+│   "Hello, World!\n" ← string   │ ← read-only
+├─────────────────────────────────┤
+│   Text (machine code)           │ ← main() machine code lives here
+└─────────────────────────────────┘
+Low addresses
+
+OS calls main() → pushes stack frame → executes printf → returns 0 → OS receives exit code 0</div>
+
+    <h2>How printf Works Under the Hood</h2>
+    <p>When you call <code>printf("Hello, World!\n")</code>:</p>
+    <ol>
+      <li>The CPU jumps to the <code>printf</code> function in <code>libc</code></li>
+      <li><code>printf</code> formats the string</li>
+      <li>It calls the <code>write</code> system call: <code>write(1, "Hello, World!\n", 14)</code></li>
+      <li>The OS kernel copies those 14 bytes to the terminal (file descriptor 1 = stdout)</li>
+      <li>The terminal displays them</li>
+    </ol>
+
+    <h2>Common printf Format Specifiers</h2>
+    <table>
+      <thead><tr><th>Specifier</th><th>Type</th><th>Example</th><th>Output</th></tr></thead>
+      <tbody>
+        <tr><td><code>%d</code></td><td>int</td><td><code>printf("%d", 42);</code></td><td>42</td></tr>
+        <tr><td><code>%f</code></td><td>float/double</td><td><code>printf("%.2f", 3.14);</code></td><td>3.14</td></tr>
+        <tr><td><code>%s</code></td><td>char*</td><td><code>printf("%s", "hi");</code></td><td>hi</td></tr>
+        <tr><td><code>%c</code></td><td>char</td><td><code>printf("%c", 'A');</code></td><td>A</td></tr>
+        <tr><td><code>%p</code></td><td>pointer</td><td><code>printf("%p", &x);</code></td><td>0x7fff...</td></tr>
+        <tr><td><code>%lu</code></td><td>unsigned long</td><td><code>printf("%lu", sizeof(int));</code></td><td>4</td></tr>
+        <tr><td><code>%%</code></td><td>literal %</td><td><code>printf("100%%");</code></td><td>100%</td></tr>
+        <tr><td><code>\n</code></td><td>newline</td><td>in string</td><td>(new line)</td></tr>
+        <tr><td><code>\t</code></td><td>tab</td><td>in string</td><td>(horizontal tab)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Diff: Wrong Return Type on main()</h2>
+    <div class="diff-container">
+      <pre class="diff-bad"><code class="language-c">/* BROKEN: void return type */
+#include &lt;stdio.h&gt;
+
+void main() {
+    printf("Hello!\n");
+    /* no return */
+}</code></pre>
+      <pre class="diff-good"><code class="language-c">/* FIXED: int return type */
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    printf("Hello!\n");
+    return 0;
+}</code></pre>
+      <div class="diff-explanation">
+        <strong>What was wrong:</strong> <code>void main()</code> is non-standard. The C standard requires <code>main()</code> to return <code>int</code>. Many compilers will warn or error on <code>void main()</code>, and the exit code returned to the shell is <span class="glossary-term" data-term="undefined behaviour">undefined behaviour</span>.<br><br>
+        <strong>Why the fix works:</strong> <code>int main(void)</code> explicitly declares the return type as int and <code>return 0</code> communicates success to the OS. The <code>void</code> in the parameter list is not required but makes it explicit that no arguments are accepted.
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>Forgetting <code>\n</code></strong> — Without it, stdout may not flush immediately, especially when piping output. Always end printf output with <code>\n</code> or call <code>fflush(stdout)</code>.</li>
+        <li><strong><code>printf</code> vs <code>puts</code></strong> — For simple strings without formatting, <code>puts("Hello\n")</code> adds a newline automatically. But <code>puts</code> always adds a newline, so don't include one in the string too.</li>
+        <li><strong>Missing semicolons on <code>return</code></strong> — <code>return 0</code> without a semicolon is a syntax error. <code>return 0;</code> is correct.</li>
+      </ul>
+    </div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">Print multiple lines</span>
+        </div>
+        <div class="exercise-body">
+          <p>Modify Hello World to print three lines: your name, today's date, and "Learning C!". Each on its own line.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Call printf three times, or use a single printf with three \n characters. Try both approaches.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Check the exit code</span>
+        </div>
+        <div class="exercise-body">
+          <p>Change <code>return 0;</code> to <code>return 42;</code>. Compile and run, then immediately run <code>echo $?</code> in the terminal. What do you see? Now change it back to 0.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">$? holds the exit code of the last command. You should see 42. Shell scripts use this to check if a program succeeded.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Print a formatted table</span>
+        </div>
+        <div class="exercise-body">
+          <p>Use printf with width specifiers to print a neat table of powers of 2 from 2¹ to 2¹⁰. Each row should show the power and the value, aligned in columns.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use <code>printf("%3d  %6d\n", power, value)</code> for right-aligned columns. Width and precision can be specified: %8.2f means 8 chars wide, 2 decimal places.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-hw">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. What does <code>return 0;</code> at the end of main() signal?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">A compile error</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">Successful program termination</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">Memory freed</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">The program loops</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">By convention, returning 0 from main() tells the OS the program exited successfully. Non-zero values signal various error conditions.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. What header must you include to use printf?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">&lt;string.h&gt;</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">&lt;stdlib.h&gt;</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">&lt;stdio.h&gt;</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">&lt;math.h&gt;</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">printf is declared in &lt;stdio.h&gt; (standard input/output). stdlib.h has malloc/free, string.h has string functions.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. What does <code>\n</code> inside a string literal do?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">Escapes a backslash</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">Inserts a tab</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">Inserts a newline</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">Terminates the string</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">\n is the escape sequence for a newline (ASCII 10). \t is tab. \0 is the null terminator. \\ is a literal backslash.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Hello World</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 1</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_hw_1', correct: 1 },
+  { id: 'q_hw_2', correct: 2 },
+  { id: 'q_hw_3', correct: 2 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-hw', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>

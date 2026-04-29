@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control Flow — C Learn</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+</head>
+<body>
+<div id="app">
+  <button id="hamburger" aria-label="Open menu">☰</button>
+  <div id="sidebar-overlay"></div>
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><a href="../../index.html" style="color:inherit;text-decoration:none">C_LEARN</a></div>
+      <div class="tagline">// offline · self-paced · no fluff</div>
+    </div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-label"><span>Progress</span><span>0/18</span></div>
+      <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+    </div>
+    <div class="streak-display"></div>
+    <nav id="main-nav"></nav>
+  </aside>
+
+  <main id="content">
+    <div class="lesson-meta">
+      <span class="meta-badge phase">Phase 1 · Lesson 5</span>
+      <span class="meta-badge time">⏱ ~30 min read + practice</span>
+    </div>
+
+    <h1>Control Flow</h1>
+
+    <div class="callout why">
+      <div class="callout-icon">Why does this matter?</div>
+      <p>Every algorithm you will ever write — sorting, searching, parsing, networking — is built from control flow: making decisions (<code>if/else</code>), repeating actions (loops), and dispatching on values (<code>switch</code>). The off-by-one error in a loop is one of the most common bugs in systems programming. Getting loops exactly right is the difference between correct code and data corruption.</p>
+    </div>
+
+    <h2>if / else</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    int score = 75;
+
+    if (score >= 90) {
+        printf("Grade: A\n");
+    } else if (score >= 80) {
+        printf("Grade: B\n");
+    } else if (score >= 70) {
+        printf("Grade: C\n");
+    } else {
+        printf("Grade: F\n");
+    }
+
+    return 0;
+}</code></pre>
+
+    <div class="ascii-diagram">if/else flow:
+
+      score = 75
+          │
+    ┌─────▼─────┐
+    │ score≥90? │ NO
+    └─────┬─────┘
+          │
+    ┌─────▼─────┐
+    │ score≥80? │ NO
+    └─────┬─────┘
+          │
+    ┌─────▼─────┐
+    │ score≥70? │ YES → print "Grade: C"
+    └─────┬─────┘
+          │
+    (else branch skipped)</div>
+
+    <h2>switch</h2>
+    <p>Use <code>switch</code> when dispatching on an integer or character value with many possible exact matches. It compiles to an efficient jump table, unlike a long chain of <code>if/else if</code>.</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    char op = '+';
+    int a = 10, b = 3;
+
+    switch (op) {
+        case '+':
+            printf("%d\n", a + b);
+            break;          /* CRITICAL: without break, falls through to next case */
+        case '-':
+            printf("%d\n", a - b);
+            break;
+        case '*':
+            printf("%d\n", a * b);
+            break;
+        case '/':
+            if (b != 0) printf("%d\n", a / b);
+            break;
+        default:
+            printf("Unknown operator\n");
+            break;
+    }
+
+    return 0;
+}</code></pre>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Fall-Through: Intentional vs Accidental</div>
+      <p>Without <code>break</code>, execution falls through to the next case's code. This is occasionally intentional (to share code between cases) but usually a bug. Always add <code>break</code> at the end of each case unless you explicitly intend fall-through, and add a comment <code>/* fall through */</code> to make it clear.</p>
+    </div>
+
+    <h2>for Loop</h2>
+    <p>Use <code>for</code> when you know the exact iteration count ahead of time.</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    /* Count from 0 to 9 */
+    for (int i = 0; i &lt; 10; i++) {
+        printf("%d ", i);
+    }
+    printf("\n");
+
+    /* Iterate backwards */
+    for (int i = 9; i >= 0; i--) {
+        printf("%d ", i);
+    }
+    printf("\n");
+
+    /* Sum 1 to 100 */
+    int sum = 0;
+    for (int i = 1; i &lt;= 100; i++) {
+        sum += i;
+    }
+    printf("Sum 1-100 = %d\n", sum);  /* 5050 */
+
+    return 0;
+}</code></pre>
+
+    <div class="ascii-diagram">for (init; condition; update)
+
+  init: i = 0
+       │
+  ┌────▼──────────┐
+  │ condition: i&lt;10│ ─── false ──→ exit loop
+  └────┬──────────┘
+       │ true
+  ┌────▼──────┐
+  │  body     │
+  └────┬──────┘
+       │
+  ┌────▼──────┐
+  │ update i++│
+  └────┬──────┘
+       │
+       └──────────────→ check condition again</div>
+
+    <h2>while Loop</h2>
+    <p>Use <code>while</code> when the loop count is not known in advance — for example, reading until end-of-file or until a condition is met.</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    int n = 1;
+    while (n &lt;= 5) {
+        printf("%d ", n);
+        n++;
+    }
+    printf("\n");
+
+    /* Read integers until user enters 0 */
+    int input;
+    int total = 0;
+    printf("Enter numbers (0 to stop):\n");
+    scanf("%d", &input);
+    while (input != 0) {
+        total += input;
+        scanf("%d", &input);
+    }
+    printf("Total: %d\n", total);
+    return 0;
+}</code></pre>
+
+    <h2>do-while Loop</h2>
+    <p>Like <code>while</code>, but the condition is checked <em>after</em> the body executes. The body always runs at least once. Useful for menus where you want to show options before asking the user to choose.</p>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    int choice;
+    do {
+        printf("1. Start\n2. Help\n3. Quit\nChoice: ");
+        scanf("%d", &choice);
+        if (choice == 1) printf("Starting...\n");
+        else if (choice == 2) printf("Help text...\n");
+    } while (choice != 3);
+
+    printf("Goodbye!\n");
+    return 0;
+}</code></pre>
+
+    <h2>break and continue</h2>
+    <pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void) {
+    /* break: exit the loop immediately */
+    for (int i = 0; i &lt; 10; i++) {
+        if (i == 5) break;        /* stop at 5 */
+        printf("%d ", i);         /* prints: 0 1 2 3 4 */
+    }
+    printf("\n");
+
+    /* continue: skip the rest of this iteration */
+    for (int i = 0; i &lt; 10; i++) {
+        if (i % 2 == 0) continue; /* skip even numbers */
+        printf("%d ", i);          /* prints: 1 3 5 7 9 */
+    }
+    printf("\n");
+
+    return 0;
+}</code></pre>
+
+    <h2>Diff: Off-by-One Loop Error</h2>
+    <div class="diff-container">
+      <pre class="diff-bad"><code class="language-c">/* BROKEN: off-by-one, misses last element */
+#include &lt;stdio.h&gt;
+#define N 5
+
+int main(void) {
+    int arr[N] = {10, 20, 30, 40, 50};
+    int sum = 0;
+    for (int i = 0; i &lt; N - 1; i++) {  /* BUG: should be i &lt; N */
+        sum += arr[i];
+    }
+    printf("Sum: %d\n", sum);  /* prints 100, not 150 */
+    return 0;
+}</code></pre>
+      <pre class="diff-good"><code class="language-c">/* FIXED: correct upper bound */
+#include &lt;stdio.h&gt;
+#define N 5
+
+int main(void) {
+    int arr[N] = {10, 20, 30, 40, 50};
+    int sum = 0;
+    for (int i = 0; i &lt; N; i++) {     /* FIXED: i &lt; N */
+        sum += arr[i];
+    }
+    printf("Sum: %d\n", sum);  /* prints 150 */
+    return 0;
+}</code></pre>
+      <div class="diff-explanation">
+        <strong>What was wrong:</strong> <code>i &lt; N - 1</code> stops at index 3 (0, 1, 2, 3), skipping index 4 (the last element, value 50). This is the classic off-by-one error — the loop exits one iteration too early.<br><br>
+        <strong>Why the fix works:</strong> <code>i &lt; N</code> runs for indices 0 through N-1, which is all N elements. The rule of thumb for C arrays: always use <code>i &lt; N</code>, not <code>i &lt;= N-1</code> (they're equivalent but the former is clearer) and <em>never</em> <code>i &lt;= N</code> (that's a buffer overflow).
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-icon">⚠ Common Mistakes</div>
+      <ul>
+        <li><strong>Off-by-one errors</strong> — The most common loop bug. Always mentally check: does the loop run for the first element? The last element? One too many?</li>
+        <li><strong>Infinite loops</strong> — Forgetting to update the loop variable (<code>while (n &lt; 10)</code> without <code>n++</code>) creates an infinite loop. Always ensure the condition can become false.</li>
+        <li><strong>Missing break in switch</strong> — Without <code>break</code>, execution falls through all remaining cases. This is almost always a bug.</li>
+      </ul>
+    </div>
+
+    <h2>Practice Exercises</h2>
+    <div class="exercises">
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level basic">Basic</span>
+          <span class="exercise-title">FizzBuzz</span>
+        </div>
+        <div class="exercise-body">
+          <p>Print numbers 1 to 100. For multiples of 3, print "Fizz"; for multiples of 5, print "Buzz"; for multiples of both, print "FizzBuzz".</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Check divisibility with the modulo operator: <code>n % 3 == 0</code>. Check the combined case first (n % 15 == 0 or check both conditions with &&).</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level intermediate">Intermediate</span>
+          <span class="exercise-title">Multiplication table</span>
+        </div>
+        <div class="exercise-body">
+          <p>Use nested for loops to print a 10×10 multiplication table, with numbers aligned in columns using printf width specifiers.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use <code>printf("%4d", i * j)</code> for 4-character-wide columns. The outer loop is rows (1-10), the inner loop is columns (1-10). Print a newline after each row.</div>
+        </div>
+      </div>
+      <div class="exercise">
+        <div class="exercise-header">
+          <span class="exercise-level challenge">Challenge</span>
+          <span class="exercise-title">Collatz sequence</span>
+        </div>
+        <div class="exercise-body">
+          <p>Implement the Collatz conjecture: start with any positive integer n. If n is even, divide by 2. If n is odd, multiply by 3 and add 1. Repeat until n = 1. Count and print the number of steps. Find which starting number under 1000 produces the longest sequence.</p>
+          <span class="hint-toggle">Show hint</span>
+          <div class="hint-content">Use a while loop for the sequence. Wrap it in a for loop from 1 to 999. Track the max steps seen and the starting number that produced them.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <h2>Checkpoint Quiz</h2>
+    <div class="quiz" id="quiz-cf">
+      <h3>Test your understanding</h3>
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. Which loop always executes its body at least once?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="0" data-opt="0">for</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="1">while</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="2">do-while</button></li>
+          <li><button class="quiz-option" data-q="0" data-opt="3">All of the above</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-0">do-while checks its condition after the body, so the body always runs at least once — even if the condition is immediately false.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. What keyword exits a loop immediately?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="1" data-opt="0">exit</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="1">continue</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="2">break</button></li>
+          <li><button class="quiz-option" data-q="1" data-opt="3">return</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-1">break exits the innermost loop or switch. continue skips to the next iteration. return exits the entire function. exit() terminates the whole program.</div>
+      </div>
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. A switch statement requires what at the end of each case to prevent fall-through?</div>
+        <ul class="quiz-options">
+          <li><button class="quiz-option" data-q="2" data-opt="0">return</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="1">exit</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="2">stop</button></li>
+          <li><button class="quiz-option" data-q="2" data-opt="3">break</button></li>
+        </ul>
+        <div class="quiz-explanation" id="explanation-2">Without break, execution falls through to the next case's code. break transfers control to after the switch statement.</div>
+      </div>
+      <button id="quiz-submit">Submit Answers</button>
+      <div id="quiz-result"></div>
+      <button id="mark-complete-anyway">Mark complete anyway</button>
+    </div>
+
+    <div class="lesson-nav" id="lesson-nav"></div>
+  </main>
+
+  <aside id="right-panel">
+    <div class="panel-section">
+      <div class="panel-label">Lesson</div>
+      <div class="panel-value">Control Flow</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Phase</div>
+      <div class="panel-value" id="panel-phase">Phase 1</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">Status</div>
+      <div class="panel-value" id="panel-status">In Progress</div>
+    </div>
+  </aside>
+</div>
+
+<button id="scroll-top">↑ top</button>
+<script src="../../scripts/main.js"></script>
+<script src="../../scripts/spaced-repetition.js"></script>
+<script src="../../scripts/streaks.js"></script>
+<script src="../../scripts/tooltips.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+hljs.highlightAll();
+const QUIZ_QUESTIONS = [
+  { id: 'q_cf_1', correct: 2 },
+  { id: 'q_cf_2', correct: 2 },
+  { id: 'q_cf_3', correct: 3 },
+];
+document.addEventListener('DOMContentLoaded', () => initQuiz('quiz-cf', QUIZ_QUESTIONS));
+</script>
+</body>
+</html>
